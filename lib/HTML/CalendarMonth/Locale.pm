@@ -25,7 +25,7 @@ sub new {
   $self->{full_days}   = exists $parms{full_days}   ? $parms{full_days}   : 0;
   $self->{full_months} = exists $parms{full_months} ? $parms{full_months} : 1;
   unless ($Register{$id}) {
-    $Register{$id} = DateTime::Locale->load($id)
+    $Register{$id} = $self->locale->load($id)
       or croak "Problem loading locale '$id'\n";
   }
   $self;
@@ -115,6 +115,17 @@ sub monthnum {
 
 ###
 
+sub locale_map {
+  my $self = shift;
+  my %map;
+  foreach my $id ($self->locales) {
+    $map{$id} = $self->locale->load($id)->name;
+  }
+  wantarray ? %map : \%map;
+}
+
+###
+
 sub minmatch_hash {
   # given a list, provide a reverse lookup of minimal values for each
   # label in the list
@@ -153,7 +164,7 @@ __END__
 
 =head1 NAME
 
-HTML::CalendarMonth::Lang - Front end class for DateTime::Locale
+HTML::CalendarMonth::Locale - Front end class for DateTime::Locale
 
 =head1 SYNOPSIS
 

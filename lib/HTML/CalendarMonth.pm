@@ -3,132 +3,65 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION $AUTOLOAD @ISA $CAL);
 
-$VERSION = '1.12';
+$VERSION = '1.13';
 
 use Carp;
 
 use HTML::ElementTable;
+use HTML::CalendarMonth::Accessor;
 use HTML::CalendarMonth::Locale;
 use HTML::CalendarMonth::DateTool;
 
-@ISA = qw(HTML::ElementTable);
+@ISA = qw(HTML::CalendarMonth::Accessor HTML::ElementTable);
 
-# Default complex attributes
-my %COMPLEX_ATTRS = (
-  head_m      => 1,  # Month heading mode
-  head_y      => 1,  # Year heading mode
-  head_dow    => 1,  # DOW heading mode
-  head_week   => 0,  # European week number mode
-  year_span   => 2,  # Default col span of year
+# Calmonth attribute method overrides
 
-  week_begin  => 1,  # What DOW (1-7) is the 1st DOW?
-
-  historic    => 1,  # If able to choose, use 'cal'
-                     # rather than Date::Calc, which
-                     # blindly extrapolates Gregorian
-
-  row_offset  => 0,  # Displacment within table
-  col_offset  => 0,
-
-  alias       => {}, # What gets displayed if not
-                     # the default item
-
-  month       => '', # These will get initialized
-  year        => '',
-
-  locale      => 'en_US',
-  full_days   => 0,
-  full_months => 1,
-
-  datetool    => '',
-  caltool     => '',
-);
-
-#################
-# Attr override #
-#################
-
-sub attr {
-  # Handle special attributes for the calendar element
-  my $self = shift;
-  $self->_complex_attr($_[0]) ? $self->_cattr(@_) :
-    $self->SUPER::attr(@_);
-}
-
-#############################
-# Special attribute methods #
-#############################
-
-sub _complex_attr {
-  # Test whether a string is a complex attribute
-  my $self = shift;
-  exists $self->{_cattrs}{lc(shift)};
-}
-
-sub _cattr {
-  # Generic interface for setting complex attributes
-  my $self = shift;
-  my $attr = lc(shift);
-  croak "Invalid complex attribute" unless $self->_complex_attr($attr);
-  croak "$attr already initialized" if defined $attr && $self->_initialized();
-  if (@_) {
-    if ($attr eq 'row_offset' || $attr eq 'col_offset') {
-      $_[0] >= 0 or croak "Offset must be zero or more";
-    }
-  }
-  @_ ? $self->{_cattrs}{$attr} = shift : $self->{_cattrs}{$attr};
-}
-
-sub _row_offset {
+sub row_offset {
   # Displace calendar how many rows into table?
   my $self = shift;
-  $self->_cattr('row_offset',@_);
-}
-sub _col_offset {
-  # Displace calendar how many cols into table?
-  my $self = shift;
-  $self->_cattr('col_offset',@_);
+  if (@_) {
+    $_[0] >= 0 or croak "Offset must be zero or more";
+  }
+  $self->SUPER::row_offset(@_);
 }
 
-# Alias set/retr
-sub alias {
-  # The alias gets set as initial cell content rather
-  # than the default
+sub col_offset {
+  # Displace calendar how many columns into table?
   my $self = shift;
-  my $item = shift;
-  defined $item  or croak "Item name required";
-  $self->{_cattrs}{alias}{$item} = shift if @_;
-  exists $self->{_cattrs}{alias}{$item} ?
-    $self->{_cattrs}{alias}{$item} : $item;
+  if (@_) {
+    $_[0] >= 0 or croak "Offset must be zero or more";
+  }
+  $self->SUPER::col_offset(@_);
 }
-sub aliased {
-  my $self = shift;
-  my $item = shift;
+
+sub item_alias {
+  my($self, $item) = splice(@_, 0, 2);
   defined $item or croak "Item name required";
-  defined $self->{_cattrs}{alias}{$item};
+  $self->alias->{$item} = shift if @_;
+  $self->alias->{$item} || $item;
+}
+
+sub item_aliased {
+  my($self, $item) = splice(@_, 0, 2);
+  defined $item or croak "Item name required.\n";
+  defined $self->alias->{$item};
 }
 
 # Header Toggles
 
 sub _head {
-# Set/test entire heading (month,year,and dow headers)
-# (does not affect European week number column)
+  # Set/test entire heading (month,year,and dow headers) (does not
+  # affect week number column). Return true if either heading active.
   my $self = shift;
-  # If either headeing active, return true
-  if (@_) {
-    $self->_head_my(@_); $self->_head_dow(@_);
-  }
-  $self->_head_my || $self->_head_dow;
+  $self->head_m(@_) && $self->head_dow(@_) if @_;
+  $self->_head_my || $self->head_dow;
 }
 
 sub _head_my {
-# Set/test month and year header mode
-  my $self = shift;
-  my $mode = shift;
-  if (defined $mode) {
-    $self->_head_m($mode); $self->_head_y($mode);
-  }
-  $self->_head_m || $self->_head_y;
+  # Set/test month and year header mode
+  my($self, $mode) = splice(@_, 0, 2);
+  $self->head_m($mode) && $self->head_y($mode) if defined $mode;
+  $self->head_m || $self->head_y;
 }
 
 sub _initialized {
@@ -142,9 +75,13 @@ sub _date {
   # Set target month, year
   my $self = shift;
   if (@_) {
-    my ($month,$year) = @_;
-    $month && $year || croak "date method requires month and year";
+    my ($month, $year) = @_;
+    $month && defined $year || croak "date method requires month and year";
     croak "Date already set" if $self->_initialized();
+
+    # get rid of possible leading 0's
+    $month += 0;
+    $year  += 0;
 
     $month <= 12 && $month >= 1 or croak "Month $month out of range (1-12)\n";
     $year > 0 or croak "Negative years are unacceptable\n";
@@ -153,87 +90,55 @@ sub _date {
     $self->year($year);
     $month = $self->monthnum($month);
 
-    # Clear old month/year dependencies
-    delete $self->{_hitog}{$self->month};
-    delete $self->{_hitog}{$self->year};
-
-    # Trigger _gencal...this is the only place this occurs
+    # Trigger _gencal...this should be the only place where this occurs
     $self->_gencal;
   }
-  return($self->month,$self->year);
+  return($self->month, $self->year);
 }
 
 # locale accessors
+sub locales                 { shift->loc->locales          }
+sub locale_days             { shift->loc->days             }
+sub locale_daynum           { shift->loc->daynum(@_)       }
+sub locale_months           { shift->loc->months           }
+sub locale_daynums          { shift->loc->daynums          }
+sub locale_minmatch         { shift->loc->minmatch         }
+sub locale_monthnum         { shift->loc->monthnum(@_)     }
+sub locale_monthnums        { shift->loc->monthnums        }
+sub locale_minmatch_pattern { shift->loc->minmatch_pattern }
 
-sub locales { shift->attr('loc')->locales }
+# class factory access
 
-sub locale_days {
-  my $self = shift;
-  $self->attr('loc')->days;
-}
-sub locale_daynums {
-  my $self = shift;
-  $self->attr('loc')->daynums;
-}
-sub locale_daynum {
-  my $self = shift;
-  $self->attr('loc')->daynum(@_);
-}
-sub locale_months {
-  my $self = shift;
-  $self->attr('loc')->months;
-}
-sub locale_minmatch {
-  my $self = shift;
-  $self->attr('loc')->minmatch;
-}
-sub locale_minmatch_pattern {
-  my $self = shift;
-  $self->attr('loc')->minmatch_pattern;
-}
-sub locale_monthnums {
-  my $self = shift;
-  $self->attr('loc')->monthnums;
-}
-sub locale_monthnum {
-  my $self = shift;
-  $self->attr('loc')->monthnum(@_);
-}
-
-# Publicize month and year complex attrs
-sub month {
-  my $self = shift;
-  $self->_month(@_);
-}
-sub year {
-  my $self = shift;
-  $self->_year(@_);
-}
+sub class_element_table { 'HTML::ElementTable' }
+sub class_datetool { __PACKAGE__ . '::DateTool' }
+sub class_locale   { __PACKAGE__ . '::Locale' }
 
 sub _gencal {
-# Generate internal calendar representation
+  # Generate internal calendar representation
   my $self = shift;
-  # New calendar...clobber day-specific settings
-  $self->{_cal} = undef;
-  $self->{_itog} = undef;
 
+  # New calendar...clobber day-specific settings
+  my $itoc = $self->_itoc({});
+
+  # Figure out dow of 1st day of the month as well as last day of the
+  # month (uses date calculator backends)
   $self->_anchor_month();
 
-  my ($wcnt) = 0; # row count for weeks in grid
+  # row count for weeks in grid
+  my ($wcnt) = 0;
 
   my ($dowc) = $self->dow1st;
-  my $skips = $self->_caltool->skips;
+  my $skips  = $self->_caltool->skips;
   my ($r, $c);
+
   # For each day
-  
   foreach (1 .. $self->lastday) {
     next if $skips->{$_};
-    $r = $wcnt + 2 + $self->_row_offset;
-    $c = $dowc + $self->_col_offset;
+    $r = $wcnt + 2 + $self->row_offset;
+    $c = $dowc + $self->col_offset;
     # This is a bootstrap until we know the number of rows in the month.
-    $self->_itoc($_, [$r, $c]);
+    $itoc->{$_} = [$r, $c];
     $dowc = ++$dowc % 7;
-
     ++$wcnt unless $dowc || $_ == $self->lastday;
   }
 
@@ -241,45 +146,45 @@ sub _gencal {
 
   my $row_extent = $wcnt + 2;
   my $col_extent = 6;
-  $col_extent += 1 if $self->_head_week;
+  $col_extent += 1 if $self->head_week;
 
-  $self->extent($row_extent + $self->_row_offset,
-                $col_extent + $self->_col_offset);
+  $self->extent($row_extent + $self->row_offset,
+                $col_extent + $self->col_offset);
 
   # Table can contain the days now, so replace our bootstrap coordinates
   # with references to the actual elements.
   my $cellref;
-  foreach (keys %{$self->{_itog}}) {
-    $cellref = $self->cell(@{$self->_itoc($_)});
-    $self->_itoc($_, $cellref);
-    $self->_ctoi($cellref, $_);
+  foreach (keys %$itoc) {
+    $cellref = $self->cell(@{$itoc->{$_}});
+    $self->itoc($_, $cellref);
+    $self->ctoi($cellref, $_);
   }
 
-  # Week num affects month/year spans
-  my $width = $self->_head_week ? 8 : 7;
+  # week num affects month/year spans
+  my $width = $self->head_week ? 8 : 7;
 
-  # Month/Year headers
-  $cellref = $self->cell($self->_row_offset, $self->_col_offset);
-  $self->_itoc($self->month, $cellref);
-  $self->_ctoi($cellref, $self->month);
-  $cellref = $self->cell($self->_row_offset,
-                         $width - $self->_year_span + $self->_col_offset);
-  $self->_itoc($self->year,  $cellref);
-  $self->_ctoi($cellref, $self->year);
+  # month/year headers
+  $cellref = $self->cell($self->row_offset, $self->col_offset);
+  $self->itoc($self->month, $cellref);
+  $self->ctoi($cellref, $self->month);
+  $cellref = $self->cell($self->row_offset,
+                         $width - $self->year_span + $self->col_offset);
+  $self->itoc($self->year,  $cellref);
+  $self->ctoi($cellref, $self->year);
 
-  $self->item($self->month)->replace_content($self->alias($self->month));
-  $self->item($self->year)->replace_content($self->alias($self->year));
+  $self->item($self->month)->replace_content($self->item_alias($self->month));
+  $self->item($self->year)->replace_content($self->item_alias($self->year));
 
   if ($self->_head_my) {
-    if ($self->_head_m) {
-      $self->item($self->month)->attr('colspan',$width - $self->_year_span);
+    if ($self->head_m) {
+      $self->item($self->month)->attr('colspan',$width - $self->year_span);
     }
     else {
       $self->item($self->month)->mask(1);
       $self->item($self->year)->attr('colspan', $width);
     }
-    if ($self->_head_y) {
-      $self->item($self->year)->attr('colspan',$self->_year_span);
+    if ($self->head_y) {
+      $self->item($self->year)->attr('colspan',$self->year_span);
     }
     else {
       $self->item($self->year)->mask(1);
@@ -295,33 +200,33 @@ sub _gencal {
   my $days = $self->locale_days;
   foreach (0..$#$days) {
     # Transform for week_begin 1..7
-    $trans = ($_ + $self->_week_begin - 1) % 7;
-    $cellref = $self->cell(1 + $self->_row_offset, $_ + $self->_col_offset);
-    $self->_itoc($days->[$trans], $cellref);
-    $self->_ctoi($cellref, $days->[$trans]);
+    $trans = ($_ + $self->week_begin - 1) % 7;
+    $cellref = $self->cell(1 + $self->row_offset, $_ + $self->col_offset);
+    $self->itoc($days->[$trans], $cellref);
+    $self->ctoi($cellref, $days->[$trans]);
   }
-  if ($self->_head_dow) {
-    grep($self->item($_)->replace_content($self->alias($_)), @$days);
+  if ($self->head_dow) {
+    grep($self->item($_)->replace_content($self->item_alias($_)), @$days);
   }
   else {
     $self->row($self->first_row + 1)->mask(1);
   }
 
   # Week number column
-  if ($self->_head_week) {
-    # Week nums can collide with days.  Use "w" in front of
-    # the number for uniqueness, and automatically alias to
-    # just the number (unless already aliased, of course).
+  if ($self->head_week) {
+    # Week nums can collide with days. Use "w" in front of the number
+    # for uniqueness, and automatically alias to just the number (unless
+    # already aliased, of course).
     $self->_gen_week_nums();
     my $ws;
     my $row_count = $self->first_week_row;
     foreach ($self->_numeric_week_nums) {
       $ws = "w$_";
-      $self->alias($ws,$_) unless $self->aliased($ws);
+      $self->item_alias($ws, $_) unless $self->item_aliased($ws);
       $cellref = $self->cell($row_count, $self->last_col);
-      $self->_itoc($ws, $cellref);
-      $self->_ctoi($cellref, $ws);
-      $self->item($ws)->replace_content($self->alias($ws));
+      $self->itoc($ws, $cellref);
+      $self->ctoi($cellref, $ws);
+      $self->item($ws)->replace_content($self->item_alias($ws));
       ++$row_count;
     }
   }
@@ -330,41 +235,39 @@ sub _gencal {
   my $i;
   foreach my $r ($self->first_week_row .. $self->last_row) {
     foreach my $c ($self->first_col .. $self->last_week_col) {
-      $self->cell($r,$c)->replace_content($self->alias($i))
+      $self->cell($r,$c)->replace_content($self->item_alias($i))
         if ($i = $self->item_at($r,$c));
     }
   }
 
   # Defaults
-  $self->table->attr('align','center');
-  $self->item($self->month)->attr('align','left') if $self->_head_m;
-  $self->attr('bgcolor','white') unless defined $self->attr('bgcolor');
-  $self->attr('border',1)        unless defined $self->attr('border');
-  $self->attr('cellspacing',0)   unless defined $self->attr('cellspacing');
-  $self->attr('cellpadding',0)   unless defined $self->attr('cellpadding');
+  $self->table->attr(align => 'center');
+  $self->item($self->month)->attr(align => 'left') if $self->head_m;
+  $self->attr(bgcolor => 'white') unless defined $self->attr('bgcolor');
+  $self->attr(border => 1)        unless defined $self->attr('border');
+  $self->attr(cellspacing => 0)   unless defined $self->attr('cellspacing');
+  $self->attr(cellpadding => 0)   unless defined $self->attr('cellpadding');
 
-  $self->{_cal};
+  $self;
 }
 
 sub _anchor_month {
-  # Anchor month
-  # Let HTML::CalendarMonth::DateTool figure out which method is
+  # Figure out what our month grid looks like.
+  # Let HTML::CalendarMonth::DateTool determine which method is
   # appropriate.
   my $self = shift;
 
   my $month = $self->monthnum($self->month);
   my $year  = $self->year;
 
-
-  # Autoselect calendar generation method if undefined.
   my $tool = $self->_caltool;
   if (!$tool) {
-    $tool = HTML::CalendarMonth::DateTool->new(
+    $tool = $self->class_datetool->new(
               year     => $year,
               month    => $month,
-              weeknum  => $self->_head_week,
-              historic => $self->_historic,
-              datetool => $self->_datetool,
+              weeknum  => $self->head_week,
+              historic => $self->historic,
+              datetool => $self->datetool,
             );
     $self->_caltool($tool);
   }
@@ -372,40 +275,20 @@ sub _anchor_month {
   my $lastday = $tool->lastday;
 
   # If the first day of the week is not Sunday...
-  $dow1st = ($dow1st - ($self->_week_begin - 1)) % 7;
+  $dow1st = ($dow1st - ($self->week_begin - 1)) % 7;
 
-  $self->{_dow1st}  = $dow1st;
-  $self->{_lastday} = $lastday;
-}
+  $self->dow1st($dow1st);
+  $self->lastday($lastday);
 
-sub _caltool {
-  @_ ? shift->attr('caltool', @_) : shift->attr('caltool');
+  $self;
 }
 
 sub _gen_week_nums {
-  # Generate week-of-the-year numbers (according to Date::Calc)
-  # Week 1 is the week containing the first Thursday of the year.
+  # Generate week-of-the-year numbers. The first week is generally
+  # agreed upon to be the week that contains the 4th of January.
   #
-  # From the Date::Calc manpage:
-  #
-  #   $week = Week_Number($year,$month,$day);
-  #
-  #   This function returns the number of the week the given date lies
-  #   in.
-  #
-  #   If the given date lies in the LAST week of the PREVIOUS year,
-  #    "0" is returned.
-  #
-  #   If the given date lies in the FIRST week of the NEXT year,
-  #   "Weeks_in_Year($year) + 1" is returned.
-  #
-  # Therefore we do bounds checks for cases where the first week
-  # number is "0" or the last week number is greater than the number
-  # of weeks in the year.
-  #
-  # These week number will *always* correspond to the Thursday slot in
-  # that row, regardless of what day of the week is considered to be
-  # the graphical "first" of the week.
+  # For purposes of shenanigans with 'week_begin', we anchor the week
+  # number off of Thursday in each row.
 
   my $self = shift;
 
@@ -453,21 +336,19 @@ sub _gen_week_nums {
     $wnums[-1] = $tool->week_of_year($tool->add_days(7, $lt[0]));
   }
 
-  $self->{_weeknums} = \@wnums;
+  $self->_weeknums(@wnums);
 }
 
-###############
-# Month hooks #
-###############
+# Month hooks
 
 sub row_items {
-# Given a list of items, return all items in rows shared by
-# the provided items.
+  # Given a list of items, return all items in rows shared by the
+  # provided items.
   my $self = shift;
   my($item,$row,$col,$i,@i,%i);
   foreach $item (@_) {
     $row = ($self->coords_of($item))[0];
-    foreach $col ($self->first_col..$self->last_col) {
+    foreach $col ($self->first_col .. $self->last_col) {
       $i = $self->item_at($row,$col) || next;
       ++$i{$i};
     }
@@ -475,71 +356,61 @@ sub row_items {
   @i = keys %i;
   @i ? @i : $i[0];
 }
+
 sub col_items {
-  # Return all item cells in the columns occupied
-  # by the provided list of items.
+  # Return all item cells in the columns occupied by the provided list
+  # of items.
   my $self = shift;
   $self->_col_items($self->first_row,$self->last_row,@_);
 }
+
 sub daycol_items {
   # Same as col_items(), but excludes header cells.
   my $self = shift;
   $self->_col_items($self->first_week_row,$self->last_row,@_);
 }
+
 sub _col_items {
-  # Given row bounds and a list of items, return
-  # all item elements in the columns occupied by the
-  # provided items.  Does not return empty cells.
-  my $self = shift;
-  my $rfirst = shift;
-  my $rlast  = shift;
-  my($item,$row,$col,$i,@i,%i);
+  # Given row bounds and a list of items, return all item elements
+  # in the columns occupied by the provided items. Does not return
+  # empty cells.
+  my($self, $rfirst, $rlast) = splice(@_, 0, 3);
+  my($item, $row, $col, %i);
   foreach $item (@_) {
     $col = ($self->coords_of($item))[1];
-    foreach $row ($rfirst..$rlast) {
-      $i = $self->item_at($row,$col) || next;
+    foreach $row ($rfirst .. $rlast) {
+      my $i = $self->item_at($row,$col) || next;
       ++$i{$i};
     }
   }
-  @i = keys %i;
+  my @i = keys %i;
   $#i ? @i : $i[0];
-}
-
-sub lastday {
-  # Return the last day of the month.
-  my $self = shift;
-  $self->{_lastday};
-}
-sub dow1st {
-  # Return the day-of-week (0..6) for the 1st
-  my $self = shift;
-  $self->{_dow1st};
 }
 
 sub daytime {
   # Return seconds since epoch for a given day
-  my $self = shift;
-  my $day  = shift or croak "Must specify day of month";
+  my($self, $day) = splice(@_, 0, 2);
+  $day or croak "Must specify day of month";
   croak "Day does not exist" unless $self->_daycheck($day);
   $self->_caltool->day_epoch($day);
 }
 
 sub week_nums {
   # Return list of all week numbers
-  my $self = shift;
-  map("w$_",$self->_numeric_week_nums);
+  map("w$_", shift->_numeric_week_nums);
 }
+
 sub _numeric_week_nums {
   # Return list of all week numbers as numbers
   my $self = shift;
-  $self->_head_week ? @{$self->{_weeknums}} : ();
+  $self->head_week ? @{$self->_weeknums} : ();
 }
 
 sub days {
   # Return list of all days of the month (1..$c->lastday).
   my $self = shift;
   my $skips = $self->_caltool->skips;
-  grep(!$skips->{$_},(1..$self->lastday));
+  grep(!$skips->{$_}, (1 .. $self->lastday));
 }
 
 sub dayheaders {
@@ -550,19 +421,18 @@ sub dayheaders {
 sub headers {
   # Return list of all headers (month,year,dayheaders)
   my $self = shift;
-  ($self->year,$self->month,$self->dayheaders);
+  ($self->year, $self->month, $self->dayheaders);
 }
 
 sub items {
   # Return list of all items (days, headers)
   my $self = shift;
-  ($self->headers,$self->days);
+  ($self->headers, $self->days);
 }
 
 sub first_col {
-  # Where is the first column of the calendar?
-  my $self = shift;
-  $self->_col_offset();
+  # Where is the first column of the calendar within the table?
+  shift->col_offset();
 }
 
 sub first_week_col { first_col(@_) }
@@ -570,32 +440,29 @@ sub first_week_col { first_col(@_) }
 sub last_col {
   # What's the max col of the calendar?
   my $self = shift;
-  $self->_head_week ? $self->last_week_col + 1 : $self->last_week_col;
-  $self->_head_week ? $self->last_week_col + 1 : $self->last_week_col;
+  $self->head_week ? $self->last_week_col + 1 : $self->last_week_col;
+  $self->head_week ? $self->last_week_col + 1 : $self->last_week_col;
 }
 
 sub last_week_col {
-  # What column does the last DOW fall in?  Should be
-  # the same as last_col unless _head_week is activated
-  my $self = shift;
-  $self->first_col + 6;
+  # What column does the last DOW fall in? Should be the same as
+  # last_col unless head_week is activated
+  shift->first_col + 6;
 }
 
 sub first_row {
   # Where is the first row of the calendar?
-  my $self = shift;
-  $self->_row_offset();
+  shift->row_offset();
 }
 
 sub first_week_row {
-  # Returns the first row containing days of the month.  This used to
-  # take into account whether the header rows were active or not, but
-  # since masking was implemented this should always be offset 2 from
-  # the first row (thereby taking into account the month/year and DOW
-  # rows).
-  my $self = shift;
+  # Returns the first row containing days of the month. This used to
+  # take into account whether the header rows were active or not,
+  # but since masking was implemented this should always be offset 2
+  # from the first row (thereby taking into account the month/year
+  # and DOW rows).
   my $w = 2;
-  $self->first_row + $w;
+  shift->first_row + $w;
 }
 
 sub last_row {
@@ -606,9 +473,7 @@ sub last_row {
 
 sub last_week_row { last_row(@_) }
 
-##########################
-# Custom glob interfaces #
-##########################
+# Custom glob interfaces
 
 sub item {
   # Return TD elements containing items
@@ -616,98 +481,100 @@ sub item {
   @_ || croak "Item(s) must be provided";
   $self->cell(grep(defined $_, map($self->coords_of($_), @_)));
 }
+
 sub item_row {
-  # Return a glob of the rows of a list of items, including
-  # empty cells.
+  # Return a glob of the rows of a list of items, including empty cells.
   my $self = shift;
-  $self->_item_row($self->first_col,$self->last_col,@_);
+  $self->_item_row($self->first_col, $self->last_col, @_);
 }
+
 sub item_day_row {
   # Same as item_row, but excludes possible week number cells
   my $self = shift;
-  $self->_item_row($self->first_col,$self->last_week_col,@_);
+  $self->_item_row($self->first_col, $self->last_week_col, @_);
 }
+
 sub _item_row {
-  # Given column bounds and a list of items, return a glob
-  # representing the cells in the rows occupied by the
-  # provided items, including empty cells.
-  my $self = shift;
-  my $cfirst = shift;
-  my $clast  = shift;
-  @_ or croak "No items provided";
-  my($row,$col,@coords);
-  foreach $row (map($self->row_of($_),@_)) {
+  # Given column bounds and a list of items, return a glob representing
+  # the cells in the rows occupied by the provided items, including
+  # empty cells.
+  my($self, $cfirst, $clast) = splice(@_, 0, 3);
+  defined $cfirst && defined $clast or croak "No items provided";
+  my($row, $col, @coords);
+  foreach $row (map($self->row_of($_), @_)) {
     foreach $col ($cfirst .. $clast) {
-      push(@coords,$row,$col);
+      push(@coords, $row, $col);
     }
   }
   $self->cell(@coords);
 }
+
 sub item_week_nums {
   # Glob of all week numbers
   my $self = shift;
   $self->item($self->week_nums);
 }
+
 sub item_col {
-  # Return a glob of the cols of a list of items, including
-  # empty cells.
+  # Return a glob of the cols of a list of items, including empty cells.
   my $self = shift;
-  $self->_item_col($self->first_row,$self->last_row,@_);
+  $self->_item_col($self->first_row, $self->last_row, @_);
 }
+
 sub item_daycol {
   # Same as item_col(), but excludes header cells.
   my $self = shift;
-  $self->_item_col($self->first_week_row,$self->last_row,@_);
+  $self->_item_col($self->first_week_row, $self->last_row, @_);
 }
+
 sub _item_col {
   # Given row bounds and a list of items, return a glob representing
-  # the cells in the columns occupied by the provided items,
-  # including empty cells.
-  my $self = shift;
-  my $rfirst = shift;
-  my $rlast  = shift;
-  @_ or croak "No items provided";
-  my($row,$col,@coords);
-  foreach $col (map($self->col_of($_),@_)) {
+  # the cells in the columns occupied by the provided items, including
+  # empty cells.
+  my($self, $rfirst, $rlast) = splice(@_, 0, 3);
+  defined $rfirst && defined $rlast or croak "No items provided";
+  my($row, $col, @coords);
+  foreach $col (map($self->col_of($_), @_)) {
     foreach $row ($rfirst .. $rlast) {
-      push(@coords,$row,$col);
+      push(@coords, $row, $col);
     }
   }
   $self->cell(@coords);
 }
+
 sub item_box {
   # Return a glob of the box defined by two items
-  my $self = shift;
-  my($item1,$item2) = @_;
-  $item1 && $item2 or croak "Two items required";
-  $self->box($self->coords_of($item1),$self->coords_of($item2));
+  my($self, $item1, $item2) = splice(@_, 0, 3);
+  defined $item1 && defined $item2 or croak "Two items required";
+  $self->box($self->coords_of($item1), $self->coords_of($item2));
 }
+
 sub all {
   # Return a glob of all calendar cells, including empty cells.
   my $self = shift;
-  $self->box($self->first_row,$self->first_col,
-             $self->last_row,$self->last_col);
+  $self->box( $self->first_row => $self->first_col,
+              $self->last_row  => $self->last_col   );
 }
+
 sub alldays {
   # Return a glob of all cells other than header cells
   my $self = shift;
-  $self->box($self->first_week_row,$self->first_col,
-             $self->last_row,$self->last_week_col);
+  $self->box( $self->first_week_row => $self->first_col,
+              $self->last_row       => $self->last_week_col );
 }
+
 sub allheaders {
   # Return a glob of all header cells
   my $self = shift;
   $self->item($self->headers);
 }
 
-##########################
-# Transformation Methods #
-##########################
+# Transformation Methods
 
 sub coords_of {
   # Convert an item into grid coordinates
   my $self = shift;
-  my $ref = $self->_itoc(@_);
+  my $ref = $self->itoc(@_);
   my @pos = ref $ref ? $ref->position : ();
   @pos ? (@pos[$#pos - 1, $#pos]) : ();
 }
@@ -715,44 +582,44 @@ sub coords_of {
 sub item_at {
   # Convert grid coords into item
   my $self = shift;
-  $self->_ctoi($self->cell(@_));
+  $self->ctoi($self->cell(@_));
 }
 
-sub _itoc {
-  # Item to cell reference
-  my $self = shift;
-  my($item, $ref) = @_;
+sub itoc {
+  # Item to grid
+  my($self, $item, $ref) = splice(@_, 0, 3);
   defined $item or croak "item required";
+  my $itoc = $self->_itoc;
   if ($ref) {
     croak "Reference required" unless ref $ref;
-    $self->{_itog}{$item} = $ref;
+    $itoc->{$item} = $ref;
   }
-  $self->{_itog}{$item};
+  $itoc->{$item};
 }
 
-sub _ctoi {
+sub ctoi {
   # Cell reference to item
-  my $self = shift;
-  my($refstring, $item) = @_;
-  $refstring or croak "cell id required";
+  my($self, $refstring, $item) = splice(@_, 0, 3);
+  defined $refstring or croak "cell id required";
+  my $ctoi = $self->_ctoi;
   if (defined $item) {
-    $self->{_ctoi}{$refstring} = $item;
+    $ctoi->{$refstring} = $item;
   }
-  $self->{_ctoi}{$refstring};
+  $ctoi->{$refstring};
 }
 
 sub row_of {
   my $self = shift;
   ($self->coords_of(@_))[0];
 }
+
 sub col_of {
   my $self = shift;
   ($self->coords_of(@_))[1];
 }
 
 sub monthname {
-  # Check/return month...returns name
-  # Accepts 1-12, or Jan..Dec
+  # Check/return month...returns name. Accepts 1-12, or Jan..Dec
   my $self = shift;
   return $self->month unless @_;
   my(@mn, $month);
@@ -764,16 +631,16 @@ sub monthname {
   foreach $month (@_) {
     if ($month =~ /^\d+$/) {
       $month >= 1 && $month <= 12 || return 0;  
-      push(@mn,$months->[$month-1]);
+      push(@mn, $months->[$month-1]);
     }
     else {
       if (exists $monthnum->{$month}) {
-        push(@mn,$month);
+        push(@mn, $month);
       }
       else {
         # Make one last attempt
         if ($month =~ /^($mmpat)/) {
-          push(@mn,$minmatch->{$1});
+          push(@mn, $minmatch->{$1});
         }
         else {
           return undef;
@@ -785,19 +652,17 @@ sub monthname {
 }
 
 sub monthnum {
-  # Check/return month, returns number
-  # Accepts 1-12, or Jan..Dec
+  # Check/return month, returns number. Accepts 1-12, or Jan..Dec
   my $self = shift;
   my $monthnum = $self->locale_monthnums;
   my @mn;
-  push(@mn,map(exists $monthnum->{$_} ?
-               $monthnum->{$_}+1 : undef,$self->monthname(@_)));
+  push(@mn, map(exists $monthnum->{$_} ?
+                $monthnum->{$_}+1 : undef, $self->monthname(@_)));
   $#mn > 0 ? @mn : $mn[0];
 }
 
 sub dayname {
-  # Check/return day...returns name
-  # Accepts 1..7, or Su..Sa
+  # Check/return day...returns name. Accepts 1..7, or Su..Sa
   my $self = shift;
   @_ || croak "Day must be provided";
   my(@dn, $day);
@@ -807,12 +672,12 @@ sub dayname {
     if ($day =~ /^\d+$/) {
       $day >= 1 && $day <= 7 || return undef;
       # week_begin is at least 1, so skew is automatic
-      push(@dn,$days->[($day - 1 + $self->_week_begin - 1) % 8]);
+      push(@dn, $days->[($day - 1 + $self->week_begin - 1) % 8]);
     }
     else {
       $day = ucfirst(lc($day));
       if (exists $daynum->{$day}) {
-        push(@dn,$day);
+        push(@dn, $day);
       }
       else {
         return undef;
@@ -823,135 +688,95 @@ sub dayname {
 }
 
 sub daynum {
-  # Check/return day number 1..7, returns number
-  # Accepts 1..7, or Su..Sa
+  # Check/return day number 1..7, returns number. Accepts 1..7,
+  # or Su..Sa
   my $self = shift;
   my $daynum = $self->locale_daynums;
   my @dn;
-  push(@dn,map(exists $daynum->{$_} ?
-               $daynum->{$_}+1 : undef,$self->dayname(@_)));
+  push(@dn, map(exists $daynum->{$_} ?
+                $daynum->{$_}+1 : undef,$self->dayname(@_)));
   $#dn > 0 ? @dn : $dn[0];
 }
 
-##################
-# Tests-n-checks #
-##################
+# Tests-n-checks
 
 sub _dayheadcheck {
   # Test day head names
-  my $self = shift;
-  my $name = shift || croak "Name missing";
+  my($self, $name) = splice(@_, 0, 2);
+  $name or croak "Name missing";
   return undef if $name =~ /^\d+$/;
   $self->daynum($name);
 }
 
 sub _daycheck {
   # Check if an item is a day of the month (1..31)
-  my $self = shift;
-  my $item = shift || croak "Item required";
-  # Can't just invert _headcheck because coords_of() needs
-  # _daycheck, and _headcheck uses coords_of()
+  my($self, $item) = splice(@_, 0, 2);
+  $item = shift or croak "Item required";
+  # Can't just invert _headcheck because coords_of() needs _daycheck,
+  # and _headcheck uses coords_of()
   $item =~ /^\d{1,2}$/ && $item <= 31;
 }
+
 sub _headcheck {
   # Check if an item is a header
   !_daycheck(@_);
 }
-sub _daygridcheck {
-  # Check if coords are in DOM area
-  # (Beware use by item_at())
-  !_headgridcheck(@_);
-}
-sub _headgridcheck {
-  # Check if coords are in the header area
-  # (This can't be used by item_at())
-  my $self = shift;
-  my($row,$col) = @_;
-  $row && $col || croak "Row and Col required";
-  my $skew = 0;
-  ++$skew if $self->_head_my;
-  ++$skew if $self->_head_dow;
-  $row > $skew ? 0 : $self->item_at($row,$col);
-}
 
-############################
-# Constructors/Destructors #
-############################
+# Constructors/Destructors
 
 sub new {
-  my $that = shift;
-  my $class = ref($that) || $that;
-
-  my(%attrs,%tattrs);
-  my($attr,$val);
-  while ($_ = shift) {
-    $val = shift;
-    $attr = lc($_);
-    if (exists $COMPLEX_ATTRS{$attr}) {
-      $attrs{$attr} = $val;
-    } 
+  my $class = shift;
+  my %parms = @_;
+  my(%attrs, %tattrs);
+  foreach (keys %parms) {
+    if (__PACKAGE__->is_calmonth_attr($_)) {
+      $attrs{$_} = $parms{$_};
+    }
     else {
-      $tattrs{$_} = $val;
+      $tattrs{$_} = $parms{$_};
     }
   }
 
-  my $self = HTML::ElementTable->new(%tattrs);
-  bless $self,$class;
+  my $self = __PACKAGE__->class_element_table->new(%tattrs);
+  bless $self, $class;
 
-  # Complex attributes initialization
-  grep($self->{_cattrs}{$_} = $COMPLEX_ATTRS{$_}, keys %COMPLEX_ATTRS);
-
-  # Locale initialization
-  my $locale      = $attrs{locale}      || $self->{_cattrs}{locale};
-  my $full_days   = $attrs{full_days}   || $self->{_cattrs}{full_days};
-  my $full_months = $attrs{full_months} || $self->{_cattrs}{full_months};
-  $self->{_cattrs}{loc} = HTML::CalendarMonth::Locale->new(
-    id          => $locale,
-    full_days   => $full_days,
-    full_months => $full_months,
-  ) or croak "Problem creating locale $locale\n";
+  # set defaults
+  $self->set_defaults;
 
   # Enable blank cell fill so BGCOLOR shows up by default
+  # (HTML::ElementTable)
   $self->blank_fill(1);
 
-  my $month = $attrs{month};
-  my $year  = $attrs{year};
+  my $month = delete $attrs{month};
+  my $year  = delete $attrs{year};
   if (!$month || !$year) {
     my ($nmonth,$nyear) = (localtime(time))[4,5];
     ++$nmonth; $nyear += 1900;
-    ($month = $nmonth) unless $month;
-    ($year  = $nyear)  unless $year;
+    $month ||= $nmonth;
+    $year  ||= $nyear;
   }
-  # Make sure they're numeric (trim leading 0's, etc)
-  $month += 0;
-  $year += 0;
+  $self->month($month);
+  $self->year($year);
 
-  # Process special calendar attributes
-  while (($attr,$val) = each %attrs) {
-    next if $attr eq 'month' || $attr eq 'year';
-    $self->attr($attr,$val);
-  }
+  # set overrides
+  $self->$_($attrs{$_}) foreach (keys %attrs);
 
-  # For now, this is the only time this will every happen
-  # for this object.  It is now 'initialized'.
-  $self->_date($month,$year);
+  $self->loc($self->class_locale->new(
+    id          => $self->locale,
+    full_days   => $self->full_days,
+    full_months => $self->full_months,
+  )) or croak "Problem creating locale " . $self->locale . "\n";
+
+  # For now, this is the only time this will every happen for this
+  # object. It is now 'initialized'.
+  $self->_date($month, $year);
 
   $self;
 }
 
-AUTOLOAD {
-  # Automatically pass along simple attr methods
-  my $self = shift;
-  my $name = $AUTOLOAD;
-  $name =~ s/.*://;           # Strip fully-qualified portion
-  return if $name eq 'DESTROY';
-  my($attr) = $name =~ /^_(.*)/;
-  croak "Invalid method '$name'" unless $self->_complex_attr($attr);
-  $self->_cattr($attr,@_);
-}
-
 # Go forth and prosper.
 1;
+
 __END__
 
 =head1 NAME

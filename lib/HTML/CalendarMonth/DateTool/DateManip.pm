@@ -64,9 +64,7 @@ sub week_of_year {
   $month ||= $self->month;
   $year  ||= $self->year;
   my $week = UnixDate(sprintf("%04d%02d%02d", $year, $month, $day), '%U');
-  $week += 1;
-  if    ($month == 1  && $week >= 51) { --$year }
-  elsif ($month == 12 && $week ==  1) { ++$year }
+  $week += 0;
   ($year, $week);
 }
 

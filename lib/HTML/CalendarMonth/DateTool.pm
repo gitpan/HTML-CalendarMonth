@@ -198,9 +198,13 @@ name of the CalendarMonth handler leaf class, e.g. DateCalc. For the
 There are number of methods automatically available:
 
 =item month()
+
 =item year()
+
 =item weeknum()
+
 =item historical()
+
 =item datetool()
 
 Accessors for the parameters provided to C<new()> above.
@@ -244,13 +248,13 @@ For a given day, and optionally C<month> and C<year> if they are
 different from those specified in C<new()>, provide the day of week
 number. (1=Sunday, 6=Saturday).
 
-=add_days($days, $delta, $day, [$month], [$year])
+=item add_days($days, $delta, $day, [$month], [$year])
 
 For a given day, and optionally C<month> and C<year> if they are
 different from those specified in C<new()>, provide a list of year,
 month, and day once C<delta> days have been added.
 
-=week_of_year($day, [$month], [$year])
+=item week_of_year($day, [$month], [$year])
 
 For a given day, and optionally C<month> and C<year> if they are
 different from those specified in C<new()>, provide a list with the week
@@ -269,4 +273,6 @@ modify it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
-HTML::CalendarMonth(3), DateTime::Locale(3)
+HTML::CalendarMonth(3), Time::Local(3), DateTime(3), Date::Calc(3),
+Date::Manip(3), cal(1)
+
