@@ -3,42 +3,45 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION $AUTOLOAD @ISA $CAL);
 
-$VERSION = '1.10';
+$VERSION = '1.11';
 
 use Carp;
 
-require HTML::ElementTable;
+use HTML::ElementTable;
+use HTML::CalendarMonth::Locale;
+use HTML::CalendarMonth::DateTool;
 
 @ISA = qw(HTML::ElementTable);
 
 # Default complex attributes
 my %COMPLEX_ATTRS = (
-  head_m     => 1,  # Month heading mode
-  head_y     => 1,  # Year heading mode
-  head_dow   => 1,  # DOW heading mode
-  head_week  => 0,  # European week number mode
-  year_span  => 2,  # Default col span of year
+  head_m      => 1,  # Month heading mode
+  head_y      => 1,  # Year heading mode
+  head_dow    => 1,  # DOW heading mode
+  head_week   => 0,  # European week number mode
+  year_span   => 2,  # Default col span of year
 
-  week_begin => 1,  # What DOW (1-7) is the 1st DOW?
+  week_begin  => 1,  # What DOW (1-7) is the 1st DOW?
 
-  historic   => 1,  # If able to choose, use 'cal'
-                    # rather than Date::Calc, which
-                    # blindly extrapolates Gregorian
+  historic    => 1,  # If able to choose, use 'cal'
+                     # rather than Date::Calc, which
+                     # blindly extrapolates Gregorian
 
-  cal_tool   => '', # Explicitly set calc method to
-                    # Time::Local, cal, Date::Calc,
-                    # or Date::Manip
+  row_offset  => 0,  # Displacment within table
+  col_offset  => 0,
 
-  row_offset => 0,  # Displacment within table
-  col_offset => 0,
+  alias       => {}, # What gets displayed if not
+                     # the default item
 
-  alias      => {}, # What gets displayed if not
-                    # the default item
+  month       => '', # These will get initialized
+  year        => '',
 
-  month      => '', # These will get initialized
-  year       => '',
+  locale      => 'en_US',
+  full_days   => 0,
+  full_months => 1,
 
-  language   => 'en',
+  datetool    => '',
+  caltool     => '',
 );
 
 #################
@@ -160,55 +163,41 @@ sub _date {
   return($self->month,$self->year);
 }
 
-# language accessors
+# locale accessors
 
-sub lang_list {
-  my $pkg = __PACKAGE__;
-  $pkg =~ s'::'/'g;
-  $pkg .= '.pm';
-  my $dir = $INC{$pkg};
-  $dir =~ s/\.pm$//;
-  my @langs;
-  foreach (glob "$dir/*.pm") {
-    next if /Lang/;
-    if (/([a-z]+)\.pm/) {
-      push(@langs, $1);
-    }
-  }
-  @langs;
-}
+sub locales { shift->attr('loc')->locales }
 
-sub lang_days {
+sub locale_days {
   my $self = shift;
-  $self->attr('lang')->days;
+  $self->attr('loc')->days;
 }
-sub lang_daynums {
+sub locale_daynums {
   my $self = shift;
-  $self->attr('lang')->daynums;
+  $self->attr('loc')->daynums;
 }
-sub lang_daynum {
+sub locale_daynum {
   my $self = shift;
-  $self->attr('lang')->daynum(@_);
+  $self->attr('loc')->daynum(@_);
 }
-sub lang_months {
+sub locale_months {
   my $self = shift;
-  $self->attr('lang')->months;
+  $self->attr('loc')->months;
 }
-sub lang_minmatch {
+sub locale_minmatch {
   my $self = shift;
-  $self->attr('lang')->minmatch;
+  $self->attr('loc')->minmatch;
 }
-sub lang_minmatch_pattern {
+sub locale_minmatch_pattern {
   my $self = shift;
-  $self->attr('lang')->minmatch_pattern;
+  $self->attr('loc')->minmatch_pattern;
 }
-sub lang_monthnums {
+sub locale_monthnums {
   my $self = shift;
-  $self->attr('lang')->monthnums;
+  $self->attr('loc')->monthnums;
 }
-sub lang_monthnum {
+sub locale_monthnum {
   my $self = shift;
-  $self->attr('lang')->monthnum(@_);
+  $self->attr('loc')->monthnum(@_);
 }
 
 # Publicize month and year complex attrs
@@ -230,19 +219,18 @@ sub _gencal {
 
   $self->_anchor_month();
 
-  my $dowp = $self->{_dowp};
-
   my ($wcnt) = 0; # row count for weeks in grid
 
   my ($dowc) = $self->dow1st;
+  my $skips = $self->_caltool->skips;
   my ($r, $c);
   # For each day
+  
   foreach (1 .. $self->lastday) {
-    next if $self->{_skips}{$_};
+    next if $skips->{$_};
     $r = $wcnt + 2 + $self->_row_offset;
-    $c= $dowc + $self->_col_offset;
-    # This is a bootstrap until we know the number
-    # of rows in the month.
+    $c = $dowc + $self->_col_offset;
+    # This is a bootstrap until we know the number of rows in the month.
     $self->_itoc($_, [$r, $c]);
     $dowc = ++$dowc % 7;
 
@@ -256,11 +244,10 @@ sub _gencal {
   $col_extent += 1 if $self->_head_week;
 
   $self->extent($row_extent + $self->_row_offset,
-		$col_extent + $self->_col_offset);
+                $col_extent + $self->_col_offset);
 
-  # Table can contain the days now, so replace our
-  # bootstrap coordinates with references to the
-  # actual elements.
+  # Table can contain the days now, so replace our bootstrap coordinates
+  # with references to the actual elements.
   my $cellref;
   foreach (keys %{$self->{_itog}}) {
     $cellref = $self->cell(@{$self->_itoc($_)});
@@ -276,7 +263,7 @@ sub _gencal {
   $self->_itoc($self->month, $cellref);
   $self->_ctoi($cellref, $self->month);
   $cellref = $self->cell($self->_row_offset,
-			 $width - $self->_year_span + $self->_col_offset);
+                         $width - $self->_year_span + $self->_col_offset);
   $self->_itoc($self->year,  $cellref);
   $self->_ctoi($cellref, $self->year);
 
@@ -305,7 +292,7 @@ sub _gencal {
 
   # DOW headers
   my $trans;
-  my $days = $self->lang_days;
+  my $days = $self->locale_days;
   foreach (0..$#$days) {
     # Transform for week_begin 1..7
     $trans = ($_ + $self->_week_begin - 1) % 7;
@@ -344,7 +331,7 @@ sub _gencal {
   foreach my $r ($self->first_week_row .. $self->last_row) {
     foreach my $c ($self->first_col .. $self->last_week_col) {
       $self->cell($r,$c)->replace_content($self->alias($i))
-	if ($i = $self->item_at($r,$c));
+        if ($i = $self->item_at($r,$c));
     }
   }
 
@@ -361,116 +348,38 @@ sub _gencal {
 
 sub _anchor_month {
   # Anchor month
-  # If contemporary, between Jan 1, 1970 and 2038 - use Time::Local
-  # If historic/futuristic, use 'cal' if available
-  # Otherwise use Date::Calc or Date::Manip.
+  # Let HTML::CalendarMonth::DateTool figure out which method is
+  # appropriate.
   my $self = shift;
 
   my $month = $self->monthnum($self->month);
   my $year  = $self->year;
 
-  my($dow1st,$lastday);
 
   # Autoselect calendar generation method if undefined.
-  if (!$self->_cal_tool) {
-    if ( (($year >= 1970) && ($year < 2038)) ) {
-      $self->_cal_tool('Time::Local');
-      eval "require Time::Local";
-    }
-    elsif ($self->_historic && ($self->_cal)) {
-      $self->_cal_tool('cal');
-    }
-    elsif(eval "require Date::Calc") {
-      $self->_cal_tool('Date::Calc');
-    }
-    elsif(eval "require Date::Manip") {
-      $self->_cal_tool('Date::Manip');
-    }
-    else {
-      croak <<__NOTOOL;
-No valid date mechanism found. Install Date::Calc or Date::Manip,
-or try using a date between 1970 and 2038 so that Time::Local
-can be used.
-__NOTOOL
-    }
+  my $tool = $self->_caltool;
+  if (!$tool) {
+    $tool = HTML::CalendarMonth::DateTool->new(
+              year     => $year,
+              month    => $month,
+              weeknum  => $self->_head_week,
+              historic => $self->_historic,
+              datetool => $self->_datetool,
+            );
+    $self->_caltool($tool);
   }
-
-  # Employ the selected calendar generation method.
-  if ($self->_cal_tool eq 'Time::Local') {
-    # Timelocal is valid
-    require Time::Local;
-    --$month;      # map to 0-12
-    $year -= 1900; # years since 1900...hooh-rah for POSIX...
-    my $nmonth = $month + 1;
-    my $nyear  = $year;
-    if ($nmonth > 11) {
-      # Happy new year
-      $nmonth = 0;
-      ++$nyear;
-    }
-    # Leave dow of 1st in 0-based format
-    $dow1st  = (gmtime(Time::Local::timegm(0,0,0,1,$month,$year)))[6];
-    # Last day is one day prior to 1st of month after
-    $lastday = (gmtime(Time::Local::timegm(0,0,0,1,$nmonth,$nyear)
-			  - 60*60*24))[3];
-  }
-  elsif ($self->_cal_tool eq 'cal') {
-    my $calcmd = $self->_cal;
-    croak "Command 'cal' not found on this system.\n" unless $calcmd;
-    my @cal    = grep(!/^\s*$/,`$calcmd $month $year`);
-    chomp @cal;
-    my @days   = grep(/\d+/,split(/\s+/,$cal[2]));
-    $dow1st    = 6 - $#days;
-    ($lastday) = $cal[$#cal] =~ /(\d+)\s*$/;
-    # With dow1st and lastday, one builds a calendar sequentially.
-    # Historically, in particular Sep 1752, days have been skipped.
-    # Here's the chance to catch that.
-    delete $self->{_skips};
-    if ($month == 9 && $year == 1752) {
-      grep(++$self->{_skips}{$_},3..13);
-    }
-  }
-  elsif($self->_cal_tool eq 'Date::Calc') {
-    # Date::Calc to save the day
-    require Date::Calc;
-    Date::Calc->import(qw(Days_in_Month Day_of_Week));
-    $lastday = Days_in_Month($year, $month);
-    # Date::Calc uses 1..7 as indicies in the week, starting with Monday.
-    # Internally, we use 0..6, starting with Sunday.  These turn out
-    # to be identical except for Sunday.
-    $dow1st = Day_of_Week($year, $month, 1);
-    $dow1st = 0 if $dow1st == 7;
-  }
-  elsif($self->_cal_tool eq 'Date::Manip') {
-    # Date::Manip to save the day
-    require Date::Manip;
-    Date::Manip->import(qw(Date_DaysInMonth Date_DayOfWeek));
-    $lastday = Date_DaysInMonth($month, $year);
-    # Date::Manip uses 1 for Monday, 7 for Sunday as well.
-    $dow1st = Date_DayOfWeek($month, 1, $year);
-    $dow1st = 0 if $dow1st == 7;
-  }
-  else {
-    croak <<__BADTOOL;
-Parameter 'cal_tool' set to something other than Time::Local, cal,
-Date::Calc, or Date::Manip.
-__BADTOOL
-  }
+  my $dow1st  = $tool->dow1st;
+  my $lastday = $tool->lastday;
 
   # If the first day of the week is not Sunday...
   $dow1st = ($dow1st - ($self->_week_begin - 1)) % 7;
 
-  # Ahhh...anyone feeling normalized?
   $self->{_dow1st}  = $dow1st;
   $self->{_lastday} = $lastday;
 }
 
-sub _cal {
-  # Snuff out the 'cal' command and cache location in a
-  # package var. Avoids 'which'
-  my $self = shift;
-  chomp($CAL = `which cal`) unless $CAL;
-  $CAL;
+sub _caltool {
+  @_ ? shift->attr('caltool', @_) : shift->attr('caltool');
 }
 
 sub _gen_week_nums {
@@ -499,52 +408,49 @@ sub _gen_week_nums {
   # the graphical "first" of the week.
 
   my $self = shift;
-  require Date::Calc;
-  Date::Calc->import(qw(Week_Number Week_of_Year
-			Weeks_in_Year Day_of_Week Add_Delta_Days));
 
   my($year, $month, $lastday) = ($self->year, $self->monthnum, $self->lastday);
 
-  # Find first and last visible Thursdays in the month. Date::Calc
-  # considers Monday to be 1, Tuesday 2, and so on. Thursday is
-  # therefore 4.
-  my $fdow = Day_of_Week($year, $month, 1);
+  my $tool = $self->_caltool;
+  $tool->can('week_of_year')
+    or croak "Oops. $tool not set up for week of year calculations.\n";
+
+  my $fdow = $self->dow1st;
   my $delta = 4 - $fdow;
   if ($delta < 0) {
     $delta += 7;
   }
-  my @ft = Add_Delta_Days($year, $month, 1, $delta);
+  my @ft = $tool->add_days($delta, 1);
 
-  my $ldow = Day_of_Week($year, $month, $lastday);
+  my $ldow = $tool->dow($lastday);
   $delta = 4 - $ldow;
   if ($delta > 0) {
     $delta -= 7;
   }
-  my @lt = Add_Delta_Days($year, $month, $lastday, $delta);
+  my @lt = $tool->add_days($delta, $lastday);
 
-  my $fweek = Week_Number($year, $month, $ft[-1]);
-  my $lweek = Week_Number($year, $month, $lt[-1]);
+  my $fweek = $tool->week_of_year(@ft);
+  my $lweek = $tool->week_of_year(@lt);
   my @wnums = $fweek .. $lweek;
 
   # Do we have days above our first Thursday?
-  if ($self->row_of($ft[-1]) != $self->first_week_row) {
+  if ($self->row_of($ft[0]) != $self->first_week_row) {
     unshift(@wnums, $wnums[0] -1);
   }
 
   # Do we have days below our last Thursday?
-  if ($self->row_of($lt[-1]) != $self->last_row) {
+  if ($self->row_of($lt[0]) != $self->last_row) {
     push(@wnums, $wnums[-1] + 1);
   }
 
   # First visible week is from last year
   if ($wnums[0] == 0) {
-    $wnums[0] = (Week_of_Year(Add_Delta_Days($year, $month, $ft[-1], -7)))[0];
+    $wnums[0] = $tool->week_of_year($tool->add_days(-7, $ft[0]));
   }
 
   # Last visible week is from subsequent year
-  my $wiy = Weeks_in_Year($year);
-  if ($wnums[-1] > $wiy) {
-    $wnums[-1] = (Week_of_Year(Add_Delta_Days($year, $month, $lt[-1], 7)))[0];
+  if ($wnums[-1] > $lweek) {
+    $wnums[-1] = $tool->week_of_year($tool->add_days(7, $lt[0]));
   }
 
   $self->{_weeknums} = \@wnums;
@@ -611,27 +517,11 @@ sub dow1st {
 }
 
 sub daytime {
-  # Return in seconds format a given day
+  # Return seconds since epoch for a given day
   my $self = shift;
   my $day  = shift or croak "Must specify day of month";
   croak "Day does not exist" unless $self->_daycheck($day);
-  my $secs;
-  if ($self->{cal_tool} eq 'Time::Local') {
-    $secs = Time::Local::timelocal(0,0,0,$day,
-                                   $self->monthnum($self->month)+1,
-                                   $self->year);
-  }
-  else {
-    require Date::Calc;
-    my $days = Date::Calc::Delta_Days(
-                                      # Jan 1, 1970
-                                      1970, 1, 1,
-                                      # A particular day of this month
-                                      $self->year, $self->monthnum, $day);
-    $secs = $days * 24 * 60 * 60;
-  }
-  # Yes, this will return negative secs if the date is before Jan 1, 1970;
-  $secs;
+  $self->_caltool->day_epoch($day);
 }
 
 sub week_nums {
@@ -648,13 +538,13 @@ sub _numeric_week_nums {
 sub days {
   # Return list of all days of the month (1..$c->lastday).
   my $self = shift;
-  grep(!$self->{_skips}{$_},(1..$self->lastday));
+  my $skips = $self->_caltool->skips;
+  grep(!$skips->{$_},(1..$self->lastday));
 }
 
 sub dayheaders {
   # Return list of all day headers (Su..Sa).
-  my $self = shift;
-  @{$self->lang_days};
+  shift->locale_days;
 }
 
 sub headers {
@@ -680,6 +570,7 @@ sub first_week_col { first_col(@_) }
 sub last_col {
   # What's the max col of the calendar?
   my $self = shift;
+  $self->_head_week ? $self->last_week_col + 1 : $self->last_week_col;
   $self->_head_week ? $self->last_week_col + 1 : $self->last_week_col;
 }
 
@@ -865,10 +756,10 @@ sub monthname {
   my $self = shift;
   return $self->month unless @_;
   my(@mn, $month);
-  my $months   = $self->lang_months;
-  my $monthnum = $self->lang_monthnums;
-  my $minmatch = $self->lang_minmatch;
-  my $mmpat    = $self->lang_minmatch_pattern;
+  my $months   = $self->locale_months;
+  my $monthnum = $self->locale_monthnums;
+  my $minmatch = $self->locale_minmatch;
+  my $mmpat    = $self->locale_minmatch_pattern;
   
   foreach $month (@_) {
     if ($month =~ /^\d+$/) {
@@ -876,7 +767,6 @@ sub monthname {
       push(@mn,$months->[$month-1]);
     }
     else {
-      $month = ucfirst(lc($month));
       if (exists $monthnum->{$month}) {
         push(@mn,$month);
       }
@@ -898,7 +788,7 @@ sub monthnum {
   # Check/return month, returns number
   # Accepts 1-12, or Jan..Dec
   my $self = shift;
-  my $monthnum = $self->lang_monthnums;
+  my $monthnum = $self->locale_monthnums;
   my @mn;
   push(@mn,map(exists $monthnum->{$_} ?
                $monthnum->{$_}+1 : undef,$self->monthname(@_)));
@@ -911,8 +801,8 @@ sub dayname {
   my $self = shift;
   @_ || croak "Day must be provided";
   my(@dn, $day);
-  my $days = $self->lang_days;
-  my $daynum = $self->lang_daynums;
+  my $days = $self->locale_days;
+  my $daynum = $self->locale_daynums;
   foreach $day (@_) {
     if ($day =~ /^\d+$/) {
       $day >= 1 && $day <= 7 || return undef;
@@ -936,7 +826,7 @@ sub daynum {
   # Check/return day number 1..7, returns number
   # Accepts 1..7, or Su..Sa
   my $self = shift;
-  my $daynum = $self->lang_daynums;
+  my $daynum = $self->locale_daynums;
   my @dn;
   push(@dn,map(exists $daynum->{$_} ?
                $daynum->{$_}+1 : undef,$self->dayname(@_)));
@@ -1011,13 +901,15 @@ sub new {
   # Complex attributes initialization
   grep($self->{_cattrs}{$_} = $COMPLEX_ATTRS{$_}, keys %COMPLEX_ATTRS);
 
-  # Lang initialization
-  my $lang = $attrs{language} || $self->{_cattrs}{language};
-  $lang = lc $lang;
-  my $lclass = __PACKAGE__ . "::$lang";
-  eval "use $lclass";
-  croak "Problem using $lclass : $@\n" if $@;
-  $self->{_cattrs}{lang} = $lclass->new;
+  # Locale initialization
+  my $locale      = $attrs{locale}      || $self->{_cattrs}{locale};
+  my $full_days   = $attrs{full_days}   || $self->{_cattrs}{full_days};
+  my $full_months = $attrs{full_months} || $self->{_cattrs}{full_months};
+  $self->{_cattrs}{loc} = HTML::CalendarMonth::Locale->new(
+    id          => $locale,
+    full_days   => $full_days,
+    full_months => $full_months,
+  ) or croak "Problem creating locale $locale\n";
 
   # Enable blank cell fill so BGCOLOR shows up by default
   $self->blank_fill(1);
@@ -1086,6 +978,10 @@ HTML::CalendarMonth - Perl extension for generating and manipulating HTML calend
  $c2->item_daycol('Su', 'Sa')->attr(bgcolor => 'cyan');
  print $c2->as_HTML;
 
+ # Full locale support via DateTime::Locale
+ $c3 HTML::CalendarMonth->new( month => 8, year => 79, locale => 'fr' );
+ print $c3->as_HTML
+
 =head1 DESCRIPTION
 
 HTML::CalendarMonth is a subclass of HTML::ElementTable. See
@@ -1132,6 +1028,10 @@ presence of any one of these utilities and modules will suffice for
 these far flung date calculations. If you want to use week-of-year
 numbering, then either one of the date modules is required.
 
+Full locale support is offered via DateTime::Locale. For a full list of
+supported locale id's, look at HTML::CalendarMonth::Locale->locales() or
+DateTime::Locale->ids().
+
 =head1 METHODS
 
 All arguments appearing in [brackets] are optional, and do not represent
@@ -1175,10 +1075,29 @@ Specifies whether to display the year header. Default 1.
 
 Specifies whether to display days of the week header. Default 1.
 
-=item language
+=item locale
 
-Specifies a language in which to render the calendar. Default is 'en'.
-See L<HTML::CalendarMonth::Lang> for more information.
+Specifies a locale in which to render the calendar. Default is 'en_US'.
+See L<HTML::CalendarMonth::Locale> for more information. If for some
+reason you prefer to use different labels than those provided by
+C<locale>, see the C<alias> attribute below.
+
+=item full_days
+
+Specifies whether or not to use full day names or their abbreviated
+names. Default is 0, use abbreviated names.
+
+=item full_months
+
+Specifies whether or not to use full month names or their abbriviated
+names. Default is 1, use full names.
+
+=item alias
+
+Takes a hash reference mapping labels provided by C<locale> to any
+custom label you prefer. Lookups, such as C<day('Sun')>, will still use
+the locale string, but when the calendar is rendered the aliased value
+will appear.
 
 =item head_week
 
@@ -1212,12 +1131,6 @@ Date::Calc or Date::Manip modules. This can be an issue since the date
 modules blindly extrapolate the Gregorian calendar, whereas 'cal' takes
 some of these quirks into account. If 'cal' is not available on your
 system, this attribute is meaningless. Defaults to 1.
-
-=item cal_tool
-
-Allows for the explicit setting of the calendar generation method rather
-than automatically selecting. Currently valid options include
-Time::Local, cal, Date::Calc, or Date::Manip.
 
 =back
 

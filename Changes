@@ -1,5 +1,22 @@
 Revision history for Perl extension HTML-CalendarMonth.
 
+1.11  Sun Feb 27 23:58:04 EST 2005
+        - No reason to reinvent the wheel. Language support has now been
+          entirely replaced with full locale support as provided by
+          DateTime::Locale (does not require installation of entire
+          DateTime suite, if that's an issue)
+        - Calendrical calculations have now been fully abstracted out to
+          a back end interface. Calendars can be generated given the
+          presence of any one of the following and subject to the
+          circumstances of the request:
+
+          * native Time::Local (but limited to dates between 1970 and
+            2038)
+          * Date::Calc
+          * DateTime
+          * Date::Manip
+          * unix 'cal' command
+
 1.10  Sat Feb 26 00:47:37 EST 2005
         - Added more robust language support. Currently supports en,
           de, and fr.

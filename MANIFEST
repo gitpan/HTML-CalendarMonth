@@ -5,7 +5,10 @@ Makefile.PL
 test.pl
 test.dat
 lib/HTML/CalendarMonth.pm
-lib/HTML/CalendarMonth/Lang.pm
-lib/HTML/CalendarMonth/en.pm
-lib/HTML/CalendarMonth/fr.pm
-lib/HTML/CalendarMonth/de.pm
+lib/HTML/CalendarMonth/Locale.pm
+lib/HTML/CalendarMonth/DateTool.pm
+lib/HTML/CalendarMonth/DateTool/TimeLocal.pm
+lib/HTML/CalendarMonth/DateTool/Cal.pm
+lib/HTML/CalendarMonth/DateTool/DateCalc.pm
+lib/HTML/CalendarMonth/DateTool/DateManip.pm
+lib/HTML/CalendarMonth/DateTool/DateTime.pm
