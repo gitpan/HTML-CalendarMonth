@@ -3,4 +3,5 @@ Changes
 MANIFEST
 Makefile.PL
 test.pl
+test.dat
 lib/HTML/CalendarMonth.pm

@@ -1,4 +1,13 @@
 Revision history for Perl extension HTML-CalendarMonth.
+
+1.09  Tue Mar 26 05:21:59 CST 2002
+	- Fixed obscure bug that caused March 31 2002
+	  to be dropped; related to a localtime/gmtime
+	  issue with DST effects.
+	- Added tests for calendars over 1-year span
+	  plus special cases such as the aforementioned
+	  March 31 2002 instance.
+
 1.08  Mon Jan  8 19:15:16 CST 2001
 	- Added Date::Manip fallback from Date::Calc,
 	  so a C compiler is not strictly necessary

@@ -1,12 +1,11 @@
 package HTML::CalendarMonth;
 
 use strict;
-use vars qw($VERSION $AUTOLOAD @ISA);
+use vars qw($VERSION $AUTOLOAD @ISA $CAL);
 
-$VERSION = '1.08';
+$VERSION = '1.09';
 
-use     Carp;
-use     Time::Local;
+use Carp;
 
 require HTML::ElementTable;
 
@@ -25,6 +24,10 @@ my %COMPLEX_ATTRS = (
 		     'historic'     => 1,  # If able to choose, use 'cal'
 	                              	   # rather than Date::Calc, which
                                            # blindly extrapolates Gregorian
+
+		     'cal_tool'     => '', # Explicitly set calc method to
+		     			   # Time::Local, cal, Date::Calc,
+					   # or Date::Manip
 
 		     'row_offset'   => 0,  # Displacment within table
 		     'col_offset'   => 0,
@@ -327,7 +330,7 @@ sub _gencal {
 
 sub _anchor_month {
   # Anchor month
-  # If contemporary, between Jan 1, 1970 and 2038 - use timelocal
+  # If contemporary, between Jan 1, 1970 and 2038 - use Time::Local
   # If historic/futuristic, use 'cal' if available
   # Otherwise use Date::Calc or Date::Manip.
   my $self = shift;
@@ -335,13 +338,36 @@ sub _anchor_month {
   my $month = $self->monthnum($self->month);
   my $year  = $self->year;
 
-  my($dow1st,$lastday,$CAL);
+  my($dow1st,$lastday);
 
-  $self->{_tlmode} = 0;
-  if ( (($year >= 1970) && ($year < 2038)) ) {
+  # Autoselect calendar generation method if undefined.
+  if (!$self->_cal_tool) {
+    if ( (($year >= 1970) && ($year < 2038)) ) {
+      $self->_cal_tool('Time::Local');
+      eval "require Time::Local";
+    }
+    elsif ($self->_historic && ($self->_cal)) {
+      $self->_cal_tool('cal');
+    }
+    elsif(eval "require Date::Calc") {
+      $self->_cal_tool('Date::Calc');
+    }
+    elsif(eval "require Date::Manip") {
+      $self->_cal_tool('Date::Manip');
+    }
+    else {
+      croak <<__NOTOOL;
+No valid date mechanism found. Install Date::Calc or Date::Manip,
+or try using a date between 1970 and 2038 so that Time::Local
+can be used.
+__NOTOOL
+    }
+  }
+
+  # Employ the selected calendar generation method.
+  if ($self->_cal_tool eq 'Time::Local') {
     # Timelocal is valid
     require Time::Local;
-    ++$self->{_tlmode};
     --$month;      # map to 0-12
     $year -= 1900; # years since 1900...hooh-rah for POSIX...
     my $nmonth = $month + 1;
@@ -352,15 +378,15 @@ sub _anchor_month {
       ++$nyear;
     }
     # Leave dow of 1st in 0-based format
-    $dow1st  = (localtime(Time::Local::timelocal(0,0,0,1,$month,$year)))[6];
+    $dow1st  = (gmtime(Time::Local::timegm(0,0,0,1,$month,$year)))[6];
     # Last day is one day prior to 1st of month after
-    $lastday = (localtime(Time::Local::timelocal(0,0,0,1,$nmonth,$nyear)
+    $lastday = (gmtime(Time::Local::timegm(0,0,0,1,$nmonth,$nyear)
 			  - 60*60*24))[3];
   }
-  elsif ($self->_historic && ($CAL = `which cal`)) {
-    chomp $CAL;
-    -x $CAL or croak "cal \"$CAL\" is not executable\n";
-    my @cal    = grep(!/^\s*$/,`$CAL $month $year`);
+  elsif ($self->_cal_tool eq 'cal') {
+    my $calcmd = $self->_cal;
+    croak "Command 'cal' not found on this system.\n" unless $calcmd;
+    my @cal    = grep(!/^\s*$/,`$calcmd $month $year`);
     chomp @cal;
     my @days   = grep(/\d+/,split(/\s+/,$cal[2]));
     $dow1st    = 6 - $#days;
@@ -373,8 +399,9 @@ sub _anchor_month {
       grep(++$self->{_skips}{$_},3..13);
     }
   }
-  elsif(eval "require Date::Calc") {
+  elsif($self->_cal_tool eq 'Date::Calc') {
     # Date::Calc to save the day
+    require Date::Calc;
     Date::Calc->import(qw(Days_in_Month Day_of_Week));
     $lastday = Days_in_Month($year, $month);
     # Date::Calc uses 1..7 as indicies in the week, starting with Monday.
@@ -383,7 +410,7 @@ sub _anchor_month {
     $dow1st = Day_of_Week($year, $month, 1);
     $dow1st = 0 if $dow1st == 7;
   }
-  else {
+  elsif($self->_cal_tool eq 'Date::Manip') {
     # Date::Manip to save the day
     require Date::Manip;
     Date::Manip->import(qw(Date_DaysInMonth Date_DayOfWeek));
@@ -392,6 +419,12 @@ sub _anchor_month {
     $dow1st = Date_DayOfWeek($month, 1, $year);
     $dow1st = 0 if $dow1st == 7;
   }
+  else {
+    croak <<__BADTOOL;
+Parameter 'cal_tool' set to something other than Time::Local, cal,
+Date::Calc, or Date::Manip.
+__BADTOOL
+  }
 
   # If the first day of the week is not Sunday...
   $dow1st = ($dow1st - ($self->_week_begin - 1)) % 7;
@@ -399,6 +432,14 @@ sub _anchor_month {
   # Ahhh...anyone feeling normalized?
   $self->{_dow1st}  = $dow1st;
   $self->{_lastday} = $lastday;
+}
+
+sub _cal {
+  # Snuff out the 'cal' command and cache location in a
+  # package var. Avoids 'which'
+  my $self = shift;
+  chomp($CAL = `which cal`) unless $CAL;
+  $CAL;
 }
 
 sub _gen_week_nums {
@@ -544,8 +585,7 @@ sub daytime {
   my $day  = shift or croak "Must specify day of month";
   croak "Day does not exist" unless $self->_daycheck($day);
   my $secs;
-  if ($self->{_tlmode}) {
-    require Time::Local;
+  if ($self->{cal_tool} eq 'Time::Local') {
     $secs = Time::Local::timelocal(0,0,0,$day,
 				   $self->monthnum($self->month)+1,
 				   $self->year);
@@ -942,6 +982,9 @@ sub new {
     ($month = $nmonth) unless $month;
     ($year  = $nyear)  unless $year;
   }
+  # Make sure they're numeric (trim leading 0's, etc)
+  $month += 0;
+  $year += 0;
 
   # Process special calendar attributes
   while (($attr,$val) = each %attrs) {
@@ -961,6 +1004,7 @@ AUTOLOAD {
   my $self = shift;
   my $name = $AUTOLOAD;
   $name =~ s/.*://;           # Strip fully-qualified portion
+  return if $name eq 'DESTROY';
   my($attr) = $name =~ /^_(.*)/;
   croak "Invalid method '$name'" unless $self->_complex_attr($attr);
   $self->_cattr($attr,@_);
@@ -1118,6 +1162,12 @@ an issue since the date modules blindly extrapolate the Gregorian
 calendar, whereas 'cal' takes some of these quirks into account. If
 'cal' is not available on your system, this attribute is meaningless.
 Defaults to 1.
+
+=item cal_tool
+
+Allows for the explicit setting of the calendar generation method
+rather than automatically selecting. Currently valid options
+include Time::Local, cal, Date::Calc, or Date::Manip.
 
 =back
 
@@ -1352,7 +1402,7 @@ Matthew P. Sisk, E<lt>F<sisk@mojotoad.com>E<gt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 1998-2000 Matthew P. Sisk. All rights reserved. All
+Copyright (c) 1998-2002 Matthew P. Sisk. All rights reserved. All
 wrongs revenged. This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
 
