@@ -3,7 +3,7 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION $AUTOLOAD @ISA);
 
-$VERSION = '1.06';
+$VERSION = '1.07';
 
 use     Carp;
 use     Time::Local;
@@ -21,11 +21,11 @@ my %COMPLEX_ATTRS = (
 		     'year_span'    => 2,  # Default col span of year
 
 		     'week_begin'   => 1,  # What DOW (1-7) is the 1st DOW?
-		     
+
 		     'historic'     => 0,  # If able to choose, use 'cal'
 	                              	   # rather than Date::Calc, which
                                            # blindly extrapolates Gregorian
-		     
+
 		     'row_offset'   => 0,  # Displacment within table
 		     'col_offset'   => 0,
 
@@ -212,7 +212,7 @@ sub _gencal {
     # of rows in the month.
     $self->_itoc($_, [$r, $c]);
     $dowc = ++$dowc % 7;
-    
+
     ++$wcnt unless $dowc || $_ == $self->lastday;
   }
 
@@ -246,6 +246,7 @@ sub _gencal {
 			 $width - $self->_year_span + $self->_col_offset);
   $self->_itoc($self->year,  $cellref);
   $self->_ctoi($cellref, $self->year);
+
   $self->item($self->month)->replace_content($self->alias($self->month));
   $self->item($self->year)->replace_content($self->alias($self->year));
 
@@ -305,9 +306,9 @@ sub _gencal {
   }
 
   # Fill in days of the month
-  my($r,$c,$i);
-  foreach $r ($self->first_week_row .. $self->last_row) {
-    foreach $c ($self->first_col .. $self->last_week_col) {
+  my $i;
+  foreach my $r ($self->first_week_row .. $self->last_row) {
+    foreach my $c ($self->first_col .. $self->last_week_col) {
       $self->cell($r,$c)->replace_content($self->alias($i))
 	if ($i = $self->item_at($r,$c));
     }
@@ -413,49 +414,60 @@ sub _gen_week_nums {
   # number is "0" or the last week number is greater than the number
   # of weeks in the year.
   #
-  # For the purposes of these week number calculations, Date::Calc
-  # (and most of the world) consider Monday to be the 1st day of the
-  # week.
+  # These week number will *always* correspond to the Thursday slot in
+  # that row, regardless of what day of the week is considered to be
+  # the graphical "first" of the week.
 
   my $self = shift;
   require Date::Calc;
-  Date::Calc->import(qw(Week_Number Week_of_Year Weeks_in_Year));
-  my($fweek, $lweek, $firstday);
+  Date::Calc->import(qw(Week_Number Week_of_Year
+			Weeks_in_Year Day_of_Week Add_Delta_Days));
 
-  $fweek = Week_Number($self->year, $self->monthnum, 1);
-  $lweek = Week_Number($self->year, $self->monthnum, $self->lastday);
-  my @wnums = ($fweek .. $lweek);
+  my($year, $month, $lastday) = ($self->year, $self->monthnum, $self->lastday);
 
-  # 1st was last week of prior year
-  if ($fweek == 0) {
-    $wnums[0]  = (Week_of_Year($self->year, $self->monthnum, $firstday))[0];
+  # Find first and last visible Thursdays in the month. Date::Calc
+  # considers Monday to be 1, Tuesday 2, and so on. Thursday is
+  # therefore 4.
+  my $fdow = Day_of_Week($year, $month, 1);
+  my $delta = 4 - $fdow;
+  if ($delta < 0) {
+    $delta += 7;
+  }
+  my @ft = Add_Delta_Days($year, $month, 1, $delta);
+
+  my $ldow = Day_of_Week($year, $month, $lastday);
+  $delta = 4 - $ldow;
+  if ($delta > 0) {
+    $delta -= 7;
+  }
+  my @lt = Add_Delta_Days($year, $month, $lastday, $delta);
+
+  my $fweek = Week_Number($year, $month, $ft[-1]);
+  my $lweek = Week_Number($year, $month, $lt[-1]);
+  my @wnums = $fweek .. $lweek;
+
+  # Do we have days above our first Thursday?
+  if ($self->row_of($ft[-1]) != $self->first_week_row) {
+    unshift(@wnums, $wnums[0] -1);
   }
 
-  # Last day is in first week of next year
-  my $wiy = Weeks_in_Year($self->year);
-  if ($lweek > $wiy) {
-    $wnums[$#wnums] = (Week_of_Year($self->year,
-				    $self->monthnum, $self->lastday))[0];
+  # Do we have days below our last Thursday?
+  if ($self->row_of($lt[-1]) != $self->last_row) {
+    push(@wnums, $wnums[-1] + 1);
   }
 
-  # Discard the first week number if Sunday is the 1st and is *not* on
-  # a row of its own.
-  if ($self->dow1st == 0 && $self->col_of(1) != $self->last_week_col) {
-    shift @wnums;
+  # First visible week is from last year
+  if ($wnums[0] == 0) {
+    $wnums[0] = (Week_of_Year(Add_Delta_Days($year, $month, $ft[-1], -7)))[0];
   }
 
-  # Add a week number if our last day is dangling (since the week
-  # numbers follow Mondays, the Monday in question could be on the
-  # prior row). Or, shorten the week numbers if our last day has been
-  # pulled up onto another Monday's row.
-  if ($#wnums < $self->{_week_rows}) {
-    push(@wnums, $wnums[-1] == $wiy ? 1 : $wnums[-1] + 1);
-  }
-  elsif ($#wnums > $self->{_week_rows}) {
-    $#wnums = $self->{_week_rows};
+  # Last visible week is from subsequent year
+  my $wiy = Weeks_in_Year($year);
+  if ($wnums[-1] > $wiy) {
+    $wnums[-1] = (Week_of_Year(Add_Delta_Days($year, $month, $lt[-1], 7)))[0];
   }
 
-  @{$self->{_weeknums}} = @wnums; 
+  $self->{_weeknums} = \@wnums;
 }
 
 ###############
@@ -584,6 +596,8 @@ sub first_col {
   $self->_col_offset();
 }
 
+sub first_week_col { first_col(@_) }
+
 sub last_col {
   # What's the max col of the calendar?
   my $self = shift;
@@ -604,13 +618,13 @@ sub first_row {
 }
 
 sub first_week_row {
-  # Returns the first row containing days of the month.  This
-  # takes into account whether the header rows are active
-  # or not.
+  # Returns the first row containing days of the month.  This used to
+  # take into account whether the header rows were active or not, but
+  # since masking was implemented this should always be offset 2 from
+  # the first row (thereby taking into account the month/year and DOW
+  # rows).
   my $self = shift;
-  my $w = 0;
-  ++$w if $self->_head_my;
-  ++$w if $self->_head_dow;
+  my $w = 2;
   $self->first_row + $w;
 }
 
@@ -619,6 +633,8 @@ sub last_row {
   my $self = shift;
   return ($self->coords_of($self->lastday))[0];
 }
+
+sub last_week_row { last_row(@_) }
 
 ##########################
 # Custom glob interfaces #
@@ -1331,6 +1347,9 @@ Jarkko Hietaniemi for some suggestions on global calendar
 customs. Thanks to Gael Marziou for some helpful bug spotting.
 
 =head1 SEE ALSO
+
+A useful page of examples can be found at
+http://www.mojotoad.com/sisk/projects/HTML-CalendarMonth.
 
 HTML::ElementTable(3), HTML::Element(3), perl(1)
 
