@@ -3,7 +3,7 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION $AUTOLOAD @ISA);
 
-$VERSION = '1.05';
+$VERSION = '1.06';
 
 use     Carp;
 use     Time::Local;
@@ -196,7 +196,6 @@ sub _gencal {
   $self->{_itog} = undef;
 
   $self->_anchor_month();
-  $self->_gen_week_nums() if $self->_head_week;
 
   my $dowp = $self->{_dowp};
 
@@ -291,6 +290,7 @@ sub _gencal {
     # Week nums can collide with days.  Use "w" in front of
     # the number for uniqueness, and automatically alias to
     # just the number (unless already aliased, of course).
+    $self->_gen_week_nums();
     my $ws;
     my $row_count = $self->first_week_row;
     foreach ($self->_numeric_week_nums) {
@@ -414,26 +414,47 @@ sub _gen_week_nums {
   # of weeks in the year.
   #
   # For the purposes of these week number calculations, Date::Calc
-  # (and most of the world) consider Sunday to be the last day of the
-  # week. Therefore, if the first day of the month is on Sunday, we
-  # use the 2nd as the start of the month in order for the week
-  # numbers to match correctly.
+  # (and most of the world) consider Monday to be the 1st day of the
+  # week.
 
   my $self = shift;
   require Date::Calc;
   Date::Calc->import(qw(Week_Number Week_of_Year Weeks_in_Year));
   my($fweek, $lweek, $firstday);
-  $firstday = $self->{_dow1st} ? 1 : 2;
-  $fweek = Week_Number($self->year, $self->monthnum, $firstday);
-  $lweek  = Week_Number($self->year, $self->monthnum, $self->lastday);
+
+  $fweek = Week_Number($self->year, $self->monthnum, 1);
+  $lweek = Week_Number($self->year, $self->monthnum, $self->lastday);
   my @wnums = ($fweek .. $lweek);
+
+  # 1st was last week of prior year
   if ($fweek == 0) {
     $wnums[0]  = (Week_of_Year($self->year, $self->monthnum, $firstday))[0];
   }
-  if ($lweek > Weeks_in_Year($self->year)) {
+
+  # Last day is in first week of next year
+  my $wiy = Weeks_in_Year($self->year);
+  if ($lweek > $wiy) {
     $wnums[$#wnums] = (Week_of_Year($self->year,
 				    $self->monthnum, $self->lastday))[0];
   }
+
+  # Discard the first week number if Sunday is the 1st and is *not* on
+  # a row of its own.
+  if ($self->dow1st == 0 && $self->col_of(1) != $self->last_week_col) {
+    shift @wnums;
+  }
+
+  # Add a week number if our last day is dangling (since the week
+  # numbers follow Mondays, the Monday in question could be on the
+  # prior row). Or, shorten the week numbers if our last day has been
+  # pulled up onto another Monday's row.
+  if ($#wnums < $self->{_week_rows}) {
+    push(@wnums, $wnums[-1] == $wiy ? 1 : $wnums[-1] + 1);
+  }
+  elsif ($#wnums > $self->{_week_rows}) {
+    $#wnums = $self->{_week_rows};
+  }
+
   @{$self->{_weeknums}} = @wnums; 
 }
 
