@@ -2,23 +2,23 @@ HTML-CalendarMonth
 -------------------
 
 HTML::CalendarMonth is a module that simplifies the rendering of a
-calendar month in HTML.  It is NOT a scheduling system.
+calendar month in HTML. It is NOT a scheduling system.
 
 Calendars are represented as HTML::Element based structures, derived
 from the HTML::ElementTable class.
 
-The module includes support for 'week of the year' numbering,
-arbitrary 1st day of the week definitions, and aliasing so that you
-can express any element in any language HTML can handle.
+The module includes support for 'week of the year' numbering, arbitrary
+1st day of the week definitions, and aliasing so that you can express
+any element in any language HTML can handle.
 
 If you wish to use 'week of the year' numbering, or want to explore
-dates beyond the capability of the internal perl time functions,
-then you will need Date::Calc or Date::Manip.
+dates beyond the capability of the internal perl time functions, then
+you will need Date::Calc or Date::Manip.
 
 INSTALLATION
 
-You install HTML-Calendar, as you would install any perl module
-library, by running these commands:
+You install HTML-Calendar, as you would install any perl module library,
+by running these commands:
 
    perl Makefile.PL
    make
@@ -27,11 +27,11 @@ library, by running these commands:
 
 DOCUMENTATION
 
-See HTML/CalendarMonth.pm for the code. See Changes for recent
-changes. POD style documentation is included in the module.  This is
-normally converted to a manual page and installed as part of the "make
-install" process.  You should also be able to use the 'perldoc'
-utility to extract and read documentation from the module directly.
+See HTML/CalendarMonth.pm for the code. See Changes for recent changes.
+POD style documentation is included in the module. This is normally
+converted to a manual page and installed as part of the "make install"
+process. You should also be able to use the 'perldoc' utility to extract
+and read documentation from the module directly.
 
 Some examples can be found here:
 
@@ -59,13 +59,14 @@ The package is also available at the Toadstool:
 
 ACKNOWLEDGMENTS
 
-Thanks to William R. Ward for some conceptual nudging.  Thanks to
-Jarkko Hietaniemi for some suggestions on global calendar
-customs. Thanks to Gael Marziou, Raul Rivero, T. Bugra Uytun, and
-Philipp W. for some helpful bug spotting.
+Thanks to William R. Ward for some conceptual nudging. Thanks to Fabian
+Aichele, Jarkko Hietaniemi, Wolfgang Jürgensen, and David 'Sniper'
+Rigaudiere for some suggestions on global calendar customs. Thanks to
+Gael Marziou, Raul Rivero, T. Bugra Uytun, and Philipp W. for some
+helpful bug spotting.
 
 COPYRIGHT
 
-Copyright (c) 1999-2002 Matthew P. Sisk.  All rights reserved.  All
-wrongs revenged. This program is free software; you can redistribute
-it and/or modify it under the same terms as Perl itself.
+Copyright (c) 1999-2005 Matthew P. Sisk. All rights reserved. All wrongs
+revenged. This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.

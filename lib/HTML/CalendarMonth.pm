@@ -3,7 +3,7 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION $AUTOLOAD @ISA $CAL);
 
-$VERSION = '1.09';
+$VERSION = '1.10';
 
 use Carp;
 
@@ -13,54 +13,33 @@ require HTML::ElementTable;
 
 # Default complex attributes
 my %COMPLEX_ATTRS = (
-		     'head_m'       => 1,  # Month heading mode
-		     'head_y'       => 1,  # Year heading mode
-		     'head_dow'     => 1,  # DOW heading mode
-		     'head_week'    => 0,  # European week number mode
-		     'year_span'    => 2,  # Default col span of year
+  head_m     => 1,  # Month heading mode
+  head_y     => 1,  # Year heading mode
+  head_dow   => 1,  # DOW heading mode
+  head_week  => 0,  # European week number mode
+  year_span  => 2,  # Default col span of year
 
-		     'week_begin'   => 1,  # What DOW (1-7) is the 1st DOW?
+  week_begin => 1,  # What DOW (1-7) is the 1st DOW?
 
-		     'historic'     => 1,  # If able to choose, use 'cal'
-	                              	   # rather than Date::Calc, which
-                                           # blindly extrapolates Gregorian
+  historic   => 1,  # If able to choose, use 'cal'
+                    # rather than Date::Calc, which
+                    # blindly extrapolates Gregorian
 
-		     'cal_tool'     => '', # Explicitly set calc method to
-		     			   # Time::Local, cal, Date::Calc,
-					   # or Date::Manip
+  cal_tool   => '', # Explicitly set calc method to
+                    # Time::Local, cal, Date::Calc,
+                    # or Date::Manip
 
-		     'row_offset'   => 0,  # Displacment within table
-		     'col_offset'   => 0,
+  row_offset => 0,  # Displacment within table
+  col_offset => 0,
 
-		     'alias'        => {}, # What gets displayed if not
-		                           # the default item
+  alias      => {}, # What gets displayed if not
+                    # the default item
 
-		     'month'        => '', # These will get initialized
-		     'year'         => '',
-		    ) ;
+  month      => '', # These will get initialized
+  year       => '',
 
-# DOW heading transforms
-
-my @days = ('Su','M','Tu','W','Th','F','Sa');
-my %daynum;
-grep($daynum{$days[$_]} = $_,0..$#days); 
-
-# Month heading transforms
-my @months = ('January','February','March','April','May','June',
-	      'July','August','September','October','November','December');
-my %monthnum;
-foreach (0 .. $#months) {
-  $monthnum{$months[$_]} = $_;
-}
-my %minmatch = (
-		'Ja'  => 'January',   'F'   => 'February',
-		'Mar' => 'March',     'Ap'  => 'April',
-		'May' => 'May',       'Jun' => 'Jun',
-		'Jul' => 'July',      'Au'  => 'August',
-		'S'   => 'September', 'O'   => 'October',
-		'N'   => 'November',  'D'   => 'December'
-	       );
-my $mmpat = join('|',keys %minmatch);
+  language   => 'en',
+);
 
 #################
 # Attr override #
@@ -181,6 +160,57 @@ sub _date {
   return($self->month,$self->year);
 }
 
+# language accessors
+
+sub lang_list {
+  my $pkg = __PACKAGE__;
+  $pkg =~ s'::'/'g;
+  $pkg .= '.pm';
+  my $dir = $INC{$pkg};
+  $dir =~ s/\.pm$//;
+  my @langs;
+  foreach (glob "$dir/*.pm") {
+    next if /Lang/;
+    if (/([a-z]+)\.pm/) {
+      push(@langs, $1);
+    }
+  }
+  @langs;
+}
+
+sub lang_days {
+  my $self = shift;
+  $self->attr('lang')->days;
+}
+sub lang_daynums {
+  my $self = shift;
+  $self->attr('lang')->daynums;
+}
+sub lang_daynum {
+  my $self = shift;
+  $self->attr('lang')->daynum(@_);
+}
+sub lang_months {
+  my $self = shift;
+  $self->attr('lang')->months;
+}
+sub lang_minmatch {
+  my $self = shift;
+  $self->attr('lang')->minmatch;
+}
+sub lang_minmatch_pattern {
+  my $self = shift;
+  $self->attr('lang')->minmatch_pattern;
+}
+sub lang_monthnums {
+  my $self = shift;
+  $self->attr('lang')->monthnums;
+}
+sub lang_monthnum {
+  my $self = shift;
+  $self->attr('lang')->monthnum(@_);
+}
+
 # Publicize month and year complex attrs
 sub month {
   my $self = shift;
@@ -275,15 +305,16 @@ sub _gencal {
 
   # DOW headers
   my $trans;
-  foreach (0..$#days) {
+  my $days = $self->lang_days;
+  foreach (0..$#$days) {
     # Transform for week_begin 1..7
     $trans = ($_ + $self->_week_begin - 1) % 7;
     $cellref = $self->cell(1 + $self->_row_offset, $_ + $self->_col_offset);
-    $self->_itoc($days[$trans], $cellref);
-    $self->_ctoi($cellref, $days[$trans]);
+    $self->_itoc($days->[$trans], $cellref);
+    $self->_ctoi($cellref, $days->[$trans]);
   }
   if ($self->_head_dow) {
-    grep($self->item($_)->replace_content($self->alias($_)), @days);
+    grep($self->item($_)->replace_content($self->alias($_)), @$days);
   }
   else {
     $self->row($self->first_row + 1)->mask(1);
@@ -587,16 +618,16 @@ sub daytime {
   my $secs;
   if ($self->{cal_tool} eq 'Time::Local') {
     $secs = Time::Local::timelocal(0,0,0,$day,
-				   $self->monthnum($self->month)+1,
-				   $self->year);
+                                   $self->monthnum($self->month)+1,
+                                   $self->year);
   }
   else {
     require Date::Calc;
     my $days = Date::Calc::Delta_Days(
-				      # Jan 1, 1970
-				      1970, 1, 1,
-				      # A particular day of this month
-				      $self->year, $self->monthnum, $day);
+                                      # Jan 1, 1970
+                                      1970, 1, 1,
+                                      # A particular day of this month
+                                      $self->year, $self->monthnum, $day);
     $secs = $days * 24 * 60 * 60;
   }
   # Yes, this will return negative secs if the date is before Jan 1, 1970;
@@ -623,7 +654,7 @@ sub days {
 sub dayheaders {
   # Return list of all day headers (Su..Sa).
   my $self = shift;
-  @days;
+  @{$self->lang_days};
 }
 
 sub headers {
@@ -764,13 +795,13 @@ sub all {
   # Return a glob of all calendar cells, including empty cells.
   my $self = shift;
   $self->box($self->first_row,$self->first_col,
-	     $self->last_row,$self->last_col);
+             $self->last_row,$self->last_col);
 }
 sub alldays {
   # Return a glob of all cells other than header cells
   my $self = shift;
   $self->box($self->first_week_row,$self->first_col,
-	     $self->last_row,$self->last_week_col);
+             $self->last_row,$self->last_week_col);
 }
 sub allheaders {
   # Return a glob of all header cells
@@ -833,26 +864,30 @@ sub monthname {
   # Accepts 1-12, or Jan..Dec
   my $self = shift;
   return $self->month unless @_;
-  my @mn;
-  my $month; # appease strict
+  my(@mn, $month);
+  my $months   = $self->lang_months;
+  my $monthnum = $self->lang_monthnums;
+  my $minmatch = $self->lang_minmatch;
+  my $mmpat    = $self->lang_minmatch_pattern;
+  
   foreach $month (@_) {
     if ($month =~ /^\d+$/) {
-      $month >= 1 && $month <= 12 || return 0;	
-      push(@mn,$months[$month-1]);
+      $month >= 1 && $month <= 12 || return 0;  
+      push(@mn,$months->[$month-1]);
     }
     else {
       $month = ucfirst(lc($month));
-      if (exists $monthnum{$month}) {
-	push(@mn,$month);
+      if (exists $monthnum->{$month}) {
+        push(@mn,$month);
       }
       else {
-	# Make one last attempt
-	if ($month =~ /^($mmpat)/) {
-	  push(@mn,$minmatch{$1});
-	}
-	else {
-	  return undef;
-	}
+        # Make one last attempt
+        if ($month =~ /^($mmpat)/) {
+          push(@mn,$minmatch->{$1});
+        }
+        else {
+          return undef;
+        }
       }
     }
   }
@@ -863,8 +898,10 @@ sub monthnum {
   # Check/return month, returns number
   # Accepts 1-12, or Jan..Dec
   my $self = shift;
+  my $monthnum = $self->lang_monthnums;
   my @mn;
-  push(@mn,map(exists $monthnum{$_} ? $monthnum{$_}+1 : undef,$self->monthname(@_)));
+  push(@mn,map(exists $monthnum->{$_} ?
+               $monthnum->{$_}+1 : undef,$self->monthname(@_)));
   $#mn > 0 ? @mn : $mn[0];
 }
 
@@ -873,21 +910,22 @@ sub dayname {
   # Accepts 1..7, or Su..Sa
   my $self = shift;
   @_ || croak "Day must be provided";
-  my @dn;
-  my $day; # appease strict
+  my(@dn, $day);
+  my $days = $self->lang_days;
+  my $daynum = $self->lang_daynums;
   foreach $day (@_) {
     if ($day =~ /^\d+$/) {
       $day >= 1 && $day <= 7 || return undef;
       # week_begin is at least 1, so skew is automatic
-      push(@dn,$days[($day - 1 + $self->_week_begin - 1) % 8]);
+      push(@dn,$days->[($day - 1 + $self->_week_begin - 1) % 8]);
     }
     else {
       $day = ucfirst(lc($day));
-      if (exists $daynum{$day}) {
-	push(@dn,$day);
+      if (exists $daynum->{$day}) {
+        push(@dn,$day);
       }
       else {
-	return undef;
+        return undef;
       }
     }
   }
@@ -898,8 +936,10 @@ sub daynum {
   # Check/return day number 1..7, returns number
   # Accepts 1..7, or Su..Sa
   my $self = shift;
+  my $daynum = $self->lang_daynums;
   my @dn;
-  push(@dn,map(exists $daynum{$_} ? $daynum{$_}+1 : undef,$self->dayname(@_)));
+  push(@dn,map(exists $daynum->{$_} ?
+               $daynum->{$_}+1 : undef,$self->dayname(@_)));
   $#dn > 0 ? @dn : $dn[0];
 }
 
@@ -965,11 +1005,19 @@ sub new {
     }
   }
 
-  my $self = new HTML::ElementTable %tattrs;
+  my $self = HTML::ElementTable->new(%tattrs);
   bless $self,$class;
 
   # Complex attributes initialization
-  grep($self->{_cattrs}{$_} = $COMPLEX_ATTRS{$_},keys %COMPLEX_ATTRS);
+  grep($self->{_cattrs}{$_} = $COMPLEX_ATTRS{$_}, keys %COMPLEX_ATTRS);
+
+  # Lang initialization
+  my $lang = $attrs{language} || $self->{_cattrs}{language};
+  $lang = lc $lang;
+  my $lclass = __PACKAGE__ . "::$lang";
+  eval "use $lclass";
+  croak "Problem using $lclass : $@\n" if $@;
+  $self->{_cattrs}{lang} = $lclass->new;
 
   # Enable blank cell fill so BGCOLOR shows up by default
   $self->blank_fill(1);
@@ -1044,21 +1092,21 @@ HTML::CalendarMonth is a subclass of HTML::ElementTable. See
 L<HTML::ElementTable(3)> for how that class works, for it affects this
 module on many levels. Like HTML::ElementTable, HTML::CalendarMonth
 behaves as if it were an HTML::ElementSuper, which is a regular
-HTML::Element with methods added to easily manipulate the appearance
-of the HTML table containing the calendar.
+HTML::Element with methods added to easily manipulate the appearance of
+the HTML table containing the calendar.
 
-The primary interaction with HTML::CalendarMonth is through
-I<items>. An I<item> is merely a symbol that represents the content of
-the cell of interest within the calendar. For instance, the element
-representing the 14th day of the month would be returned by
-C<$c-E<gt>item(14)>. Similarly, the element representing the header
-for Monday would be returned by C<$c-E<gt>item('Mo')>. If the year
-happened to by 1984, then C<$c-E<gt>item(1984)> would return the cell
-representing the year. Since years and particular months change
-frequently, it is probably more useful to take advantage of the
-C<month()> and C<year()> methods, which return the respective item
-symbol for the current calendar. In the prior example, using 1984, the
-following is equivalent: C<$c-E<gt>item($c-E<gt>year())>.
+The primary interaction with HTML::CalendarMonth is through I<items>. An
+I<item> is merely a symbol that represents the content of the cell of
+interest within the calendar. For instance, the element representing the
+14th day of the month would be returned by C<$c-E<gt>item(14)>.
+Similarly, the element representing the header for Monday would be
+returned by C<$c-E<gt>item('Mo')>. If the year happened to by 1984, then
+C<$c-E<gt>item(1984)> would return the cell representing the year. Since
+years and particular months change frequently, it is probably more
+useful to take advantage of the C<month()> and C<year()> methods, which
+return the respective item symbol for the current calendar. In the prior
+example, using 1984, the following is equivalent: C<$c-E<gt>item($c-
+E<gt>year())>.
 
 Multiple cells of the calendar can be manipulated as if they were a
 single element. For instance, C<$c-E<gt>item(15)-E<gt>attr(bgcolor
@@ -1067,8 +1115,8 @@ representing the 15th. By the same token, C<$c-E<gt>item(15, 16, 17,
 23)-E<gt>attr(bgcolor =E<gt> 'cyan')> would do the same thing for all
 cells containing the item symbols passed to the C<item()> method.
 
-The calendar structure is still nothing more than a table structure;
-the same table structure provided by the HTML::ElementTable class. In
+The calendar structure is still nothing more than a table structure; the
+same table structure provided by the HTML::ElementTable class. In
 addition to the I<item> based access methods above, calendar cells can
 still be accessed using row and column grid coordinates using the
 C<cell()> method provided by the table class. All coordinate-based
@@ -1078,17 +1126,16 @@ The module includes support for week-of-the-year numbering, arbitrary
 1st day of the week definitions, and aliasing so that you can express
 any element in any language HTML can handle.
 
-Dates that are beyond the range of the built-in time functions
-of perl are handled either by the 'cal' command, Date::Calc, or
-Date::Manip. The presence of any one of these utilities and modules
-will suffice for these far flung date calculations. If you want
-to use week-of-year numbering, then either one of the date modules is
-required.
+Dates that are beyond the range of the built-in time functions of perl
+are handled either by the 'cal' command, Date::Calc, or Date::Manip. The
+presence of any one of these utilities and modules will suffice for
+these far flung date calculations. If you want to use week-of-year
+numbering, then either one of the date modules is required.
 
 =head1 METHODS
 
-All arguments appearing in [brackets] are optional, and do not
-represent anonymous array references.
+All arguments appearing in [brackets] are optional, and do not represent
+anonymous array references.
 
 =over
 
@@ -1097,13 +1144,12 @@ B<Constructor>
 =item new()
 
 With no arguments, the constructor will return a calendar object
-representing the current month with a default appearance.  The initial
-configuration of the calendar is controlled by special attributes.
-Non-calendar related attributes are passed along to
-HTML::ElementTable. Any non-table related attributes left after that
-are passed to HTML::Element while constructing the E<lt>tableE<gt>
-tag. See L<HTML::ElementTable> if you are interested in attributes
-that can be passed along to that class.
+representing the current month with a default appearance. The initial
+configuration of the calendar is controlled by special attributes. Non-
+calendar related attributes are passed along to HTML::ElementTable. Any
+non-table related attributes left after that are passed to HTML::Element
+while constructing the E<lt>tableE<gt> tag. See L<HTML::ElementTable> if
+you are interested in attributes that can be passed along to that class.
 
 Special Attributes for HTML::CalendarMonth:
 
@@ -1129,15 +1175,20 @@ Specifies whether to display the year header. Default 1.
 
 Specifies whether to display days of the week header. Default 1.
 
+=item language
+
+Specifies a language in which to render the calendar. Default is 'en'.
+See L<HTML::CalendarMonth::Lang> for more information.
+
 =item head_week
 
 Specifies whether to display the week-of-year numbering. Default 0.
 
 =item week_begin
 
-Specify first day of the week, which can be 1..7, starting with
-Sunday. Defaults to 1, or Sunday. In order to specify Monday, set this
-to 2, and so on.
+Specify first day of the week, which can be 1..7, starting with Sunday.
+Defaults to 1, or Sunday. In order to specify Monday, set this to 2,
+and so on.
 
 =item row_offset
 
@@ -1153,21 +1204,20 @@ of the table the same as the first row of the calendar.
 
 =item historic
 
-This option is ignored for dates that do not exceed the range of the
-built-in perl time functions. For dates that B<do> exceed these
-ranges, this option specifies the default calculation method. When
-set, if the 'cal' utility is available on your system, that will be
-used rather than the Date::Calc or Date::Manip modules. This can be
-an issue since the date modules blindly extrapolate the Gregorian
-calendar, whereas 'cal' takes some of these quirks into account. If
-'cal' is not available on your system, this attribute is meaningless.
-Defaults to 1.
+This option is ignored for dates that do not exceed the range of the built-
+in perl time functions. For dates that B<do> exceed these ranges, this
+option specifies the default calculation method. When set, if the 'cal'
+utility is available on your system, that will be used rather than the
+Date::Calc or Date::Manip modules. This can be an issue since the date
+modules blindly extrapolate the Gregorian calendar, whereas 'cal' takes
+some of these quirks into account. If 'cal' is not available on your
+system, this attribute is meaningless. Defaults to 1.
 
 =item cal_tool
 
-Allows for the explicit setting of the calendar generation method
-rather than automatically selecting. Currently valid options
-include Time::Local, cal, Date::Calc, or Date::Manip.
+Allows for the explicit setting of the calendar generation method rather
+than automatically selecting. Currently valid options include
+Time::Local, cal, Date::Calc, or Date::Manip.
 
 =back
 
@@ -1177,7 +1227,7 @@ B<Item Query Methods>
 
 The following methods return lists of item symbols that are related in
 some way to the provided list of items. The returned symbols may then
-be used as arguments to the glob methods detailed further below.  When
+be used as arguments to the glob methods detailed further below. When
 these methods deal with 'rows' and 'columns', they are only concerned
 with the cells in the calendar -- not the cells that might be present
 in the surrounding table if you have extended it. If you have not set
@@ -1193,13 +1243,12 @@ Returns all item symbols in rows shared by the provided item symbols.
 
 =item col_items(item1, [item2, ...])
 
-Returns all item symbols in columns shared by the provided item
-symbols.
+Returns all item symbols in columns shared by the provided item symbols.
 
 =item daycol_items(col_item1, [col_item2, ...])
 
-Same as col_items(), but the returned item symbols are limited to
-those that are not header items (month, year, day-of-week).
+Same as col_items(), but the returned item symbols are limited to those
+that are not header items (month, year, day-of-week).
 
 =item row_of(item1, [item2, ...])
 
@@ -1207,8 +1256,8 @@ Returns the row numbers of rows containing the provided item symbols.
 
 =item col_of(item1, [item2, ...])
 
-Returns the column numbers of columns containing the provided item
-symbols.
+Returns the column numbers of columns containing the provided
+item symbols.
 
 =item lastday()
 
@@ -1237,14 +1286,14 @@ Returns a list of all item symbols in the calendar.
 =item first_col()
 
 Returns the number of the first column of the calendar. This could be
-different from that of the surrounding table if the table was
-extended, but otherwise should be identical.
+different from that of the surrounding table if the table was extended,
+but otherwise should be identical.
 
 =item last_col()
 
 Returns the number of the last column of the calendar. This could be
-different from that of the surrounding table if the table was
-extended, but should otherwise be identical.
+different from that of the surrounding table if the table was extended,
+but should otherwise be identical.
 
 =item first_row()
 
@@ -1253,15 +1302,15 @@ different from that of the surrounding table if offsets were made.
 
 =item first_week_row()
 
-Returns the number of the first row of the calendar containing day
-items (ie, the first week). This could vary depending on table offsets
-and header modes.
+Returns the number of the first row of the calendar containing day items
+(ie, the first week). This could vary depending on table offsets and
+header modes.
 
 =item last_row()
 
 Returns the number of the last row of the calendar. This could be
-different from that of the surrounding table if the table was
-extended, but should otherwise be identical.
+different from that of the surrounding table if the table was extended,
+but should otherwise be identical.
 
 =back
 
@@ -1269,15 +1318,14 @@ B<Glob Methods>
 
 Glob methods return references that are functionally equivalent to an
 individual calendar cell. Mostly, they provide item based analogues to
-the glob methods provided in HTML::ElementTable. In methods dealing
-with rows, columns, and boxes, the globs include empty calendar cells
-(which would otherwise need to be accessed through native
-HTML::ElementTable methods). The row and column numbers returned by
-the item methods above are compatible with the grid based methods in
-HTML::ElementTable.
+the glob methods provided in HTML::ElementTable. In methods dealing with
+rows, columns, and boxes, the globs include empty calendar cells (which
+would otherwise need to be accessed through native HTML::ElementTable
+methods). The row and column numbers returned by the item methods above
+are compatible with the grid based methods in HTML::ElementTable.
 
-For details on how these globs work, check out L<HTML::ElementTable>
-and L<HTML::ElementGlob>.
+For details on how these globs work, check out L<HTML::ElementTable> and
+L<HTML::ElementGlob>.
 
 =over
 
@@ -1291,8 +1339,7 @@ Returns all cells in all rows occupied by the provided item symbols.
 
 =item item_col(item1, [item2, ...])
 
-Returns all cells in all columns occupied by the provided item
-symbols.
+Returns all cells in all columns occupied by the provided item symbols.
 
 =item item_daycol(item1, [item2, ...])
 
@@ -1325,13 +1372,13 @@ symbols, coordinates, and other representations.
 
 =item coords_of(item)
 
-Returns the row and column of the provided item symbol, for use with
-the grid based methods in HTML::ElementTable.
+Returns the row and column of the provided item symbol, for use with the
+grid based methods in HTML::ElementTable.
 
 =item item_at(row,column)
 
-Returns the item symbol of the item at the provided coordinates, for
-use with the item based methods of HTML::CalendarMonth.
+Returns the item symbol of the item at the provided coordinates, for use
+with the item based methods of HTML::CalendarMonth.
 
 =item monthname(monthnum)
 
@@ -1346,8 +1393,8 @@ symbol for the month will be determined from this match.
 
 =item dayname(daynum)
 
-Returns the name (item symbol) of the day of week header for a number
-of a day of the week, where I<daynum> is 1..7.
+Returns the name (item symbol) of the day of week header for a number of
+a day of the week, where I<daynum> is 1..7.
 
 =item daynum(dayname)
 
@@ -1365,27 +1412,26 @@ must be present in the current calendar.
 
 One of the nice things about having a calendar represented as a table
 accessible with grid coordinates is that some of the trickier date
-calculations become trivial. You can use packages such as
-I<Date::Manip> or I<Date::Calc> for these sort of things, but the
-algorithms are often derived from a common human activity: looking at
-a calendar on a wall. Say, for instance, that you are interested in
-"the third Friday of every month". If you are using a calendar with
-Sunday as the first day of the week, then Fridays will always be in
-column 5, starting from 0. Likewise, due to the fact that supressed
-headers are merely I<masked> in the actual table, the first row with
-dates in a calendar structure will B<always> be 2, even if the month,
-year, or day headers are disabled. The third friday of every month
-therefore becomes C<$c-E<gt>cell(2,5)>, regardless of the particular
-month. Likewise, the "nth dayname/week of the month" can always be
-mapped to table coordinates.
+calculations become trivial. You can use packages such as I<Date::Manip>
+or I<Date::Calc> for these sort of things, but the algorithms are often
+derived from a common human activity: looking at a calendar on a wall.
+Say, for instance, that you are interested in "the third Friday of every
+month". If you are using a calendar with Sunday as the first day of the
+week, then Fridays will always be in column 5, starting from 0.
+Likewise, due to the fact that supressed headers are merely I<masked> in
+the actual table, the first row with dates in a calendar structure will
+B<always> be 2, even if the month, year, or day headers are disabled.
+The third friday of every month therefore becomes C<$c-E<gt>cell(2,5)>,
+regardless of the particular month. Likewise, the "nth dayname/week of
+the month" can always be mapped to table coordinates.
 
-The particulars of this grid mapping are affected if you have
-redefined what the first day of the week is, or if you have tweaked
-the table beyond the bounds of the calendar itself. There are methods
-that can help under these circumstances, though. For instance, in our
-example where we are interested in the 3rd Friday of the month, the
-row number is accessed with C<$c-E<gt>first_week_row + 2>, whereas the
-column number could be derived with C<$c-E<gt>last_col - 1>.
+The particulars of this grid mapping are affected if you have redefined
+what the first day of the week is, or if you have tweaked the table
+beyond the bounds of the calendar itself. There are methods that can
+help under these circumstances, though. For instance, in our example
+where we are interested in the 3rd Friday of the month, the row number
+is accessed with C<$c-E<gt>first_week_row + 2>, whereas the column
+number could be derived with C<$c-E<gt>last_col - 1>.
 
 =head1 REQUIRES
 
@@ -1393,8 +1439,8 @@ HTML::ElementTable
 
 =head1 OPTIONAL
 
-Date::Calc or Date::Manip (only if you want week-of-year numbering
-or non-contemporary dates on a system without the I<cal> command)
+Date::Calc or Date::Manip (only if you want week-of-year numbering or
+non-contemporary dates on a system without the I<cal> command)
 
 =head1 AUTHOR
 
@@ -1402,14 +1448,17 @@ Matthew P. Sisk, E<lt>F<sisk@mojotoad.com>E<gt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 1998-2002 Matthew P. Sisk. All rights reserved. All
-wrongs revenged. This program is free software; you can redistribute
-it and/or modify it under the same terms as Perl itself.
+Copyright (c) 1998-2005 Matthew P. Sisk. All rights reserved. All wrongs
+revenged. This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
 A useful page of examples can be found at
 http://www.mojotoad.com/sisk/projects/HTML-CalendarMonth.
+
+For information on iso639 standards for abbreviations for language
+names, see http://www.loc.gov/standards/iso639-2/englangn.html
 
 HTML::ElementTable(3), HTML::Element(3), perl(1)
 
