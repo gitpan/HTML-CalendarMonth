@@ -3,7 +3,7 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION $AUTOLOAD @ISA);
 
-$VERSION = '1.03';
+$VERSION = '1.04';
 
 use     Carp;
 use     Time::Local;
@@ -906,113 +906,185 @@ HTML::CalendarMonth - Perl extension for generating and manipulating HTML calend
 
 =head1 SYNOPSIS
 
- require HTML::CalendarMonth;
- use     HTML::AsSubs;
- $c = new HTML::CalendarMonth ( month => 3, year => 69 );
- $c->item($c->year,$c->month)->attr(bgcolor => 'wheat');
- $c->item($c->year,$c->month)->wrap_content(font({size => '+2'}));
+ use HTML::CalendarMonth;
+ use HTML::AsSubs;
+
+ # Using HTML::AsSubs
+ $c = HTML::CalendarMonth->new( month => 3, year => 69 );
+ $c->item($c->year, $c->month)->attr(bgcolor => 'wheat');
+ $c->item($c->year, $c->month)->wrap_content(font({size => '+2'}));
+ $c->item(12, 16, 28)->wrap_content(strong());
  print $c->as_HTML;
+
+ # Using regular HTML::Element creation
+ $c2 = HTML::CalendarMonth->new( month => 8, year => 79 );
+ $c2->item($c->year, $c->month)->attr(bgcolor => 'wheat');
+ $f = HTML::Element->new('font', size => '+2');
+ $c2->item($c->year, $c->month)->wrap_content($f);
+ $c2->item_daycol('Su', 'Sa')->attr(bgcolor => 'cyan');
+ print $c2->as_HTML;
 
 =head1 DESCRIPTION
 
-HTML::CalendarMonth is a subclass of HTML::ElementTable.  See
-L<HTML::ElementTable(3)> for how that class works, for it
-affects this module on many levels.  Like HTML::ElementTable,
-HTML::CalendarMonth behaves as if it were an HTML::ElementSuper,
-with methods added to easily manipulate the appearance of
-the HTML table containing the calendar.  In addition to the
-row and column I<cell> based methods provided in HTML::ElementTable,
-there are analogous methods based on I<items>, or the symbols
-contained in the calendar cells.  For instance, C<$c-E<gt>item(15)> returns
-the cell containing the 15th, and C<$c-E<gt>item($c-E<gt>year())> returns the
-cell containing the year.  Groups of item cells can be manipulated
-as if they were single elements.  For example, C<$c-E<gt>daycol('Su')>
-would affect all days in the same column as the 'Su' header.
+HTML::CalendarMonth is a subclass of HTML::ElementTable. See
+L<HTML::ElementTable(3)> for how that class works, for it affects this
+module on many levels. Like HTML::ElementTable, HTML::CalendarMonth
+behaves as if it were an HTML::ElementSuper, which is a regular
+HTML::Element with methods added to easily manipulate the appearance
+of the HTML table containing the calendar.
 
-The module includes support for 'week of the year' numbering, arbitrary
+The primary interaction with HTML::CalendarMonth is through
+I<items>. An I<item> is merely a symbol that represents the content of
+the cell of interest within the calendar. For instance, the element
+representing the 14th day of the month would be returned by
+C<$c-E<gt>item(14)>. Similarly, the element representing the header
+for Monday would be returned by C<$c-E<gt>item('Mo')>. If the year
+happened to by 1984, then C<$c-E<gt>item(1984)> would return the cell
+representing the year. Since years and particular months change
+frequently, it is probably more useful to take advantage of the
+C<month()> and C<year()> methods, which return the respective item
+symbol for the current calendar. In the prior example, using 1984, the
+following is equivalent: C<$c-E<gt>item($c-E<gt>year())>.
+
+Multiple cells of the calendar can be manipulated as if they were a
+single element. For instance, C<$c-E<gt>item(15)-E<gt>attr(bgcolor
+=E<gt> 'cyan')> would alter the background color of the cell
+representing the 15th. By the same token, C<$c-E<gt>item(15, 16, 17,
+23)-E<gt>attr(bgcolor =E<gt> 'cyan')> would do the same thing for all
+cells containing the item symbols passed to the C<item()> method.
+
+The calendar structure is still nothing more than a table structure;
+the same table structure provided by the HTML::ElementTable class. In
+addition to the I<item> based access methods above, calendar cells can
+still be accessed using row and column grid coordinates using the
+C<cell()> method provided by the table class. All coordinate-based
+methods in the table class are accessible to the calendar class.
+
+The module includes support for week-of-the-year numbering, arbitrary
 1st day of the week definitions, and aliasing so that you can express
 any element in any language HTML can handle.
 
-=head1 PUBLIC METHODS
+=head1 METHODS
 
-All arguments appearing in [brackets] are optional.
+All arguments appearing in [brackets] are optional, and do not
+represent anonymous array references.
 
-=over 4
+=over
 
-=item B<Constructor>
+B<Constructor>
 
-=item new([attr1 => val1, attr2 => val2, ...]) HTML::CalendarMonth;
+=item new()
 
 With no arguments, the constructor will return a calendar object
-representing the current month with a default appearance.  The
-initial configuration of the calendar is controlled by special
-attributes.  Non-calendar related attributes are passed along
-to HTML::ElementTable. Any non-table related attributes left
-after that are passed to HTML::Element while constructing
-the E<lt>tableE<gt> tag.
+representing the current month with a default appearance.  The initial
+configuration of the calendar is controlled by special attributes.
+Non-calendar related attributes are passed along to
+HTML::ElementTable. Any non-table related attributes left after that
+are passed to HTML::Element while constructing the E<lt>tableE<gt>
+tag. See L<HTML::ElementTable> if you are interested in attributes
+that can be passed along to that class.
 
-Special Attributes for HTML::CalendarMonth
+Special Attributes for HTML::CalendarMonth:
 
- month      1-12, or Jan-Dec.  Default current.
- year       Four digit representation.  Default current.
- head_m     0 or 1.  Mode for month header display. Default 1.
- head_y     0 or 1.  Mode for year header display. Default 1.
- head_dow   0 or 1.  Mode for day-of-week header display. Default 1.
- head_week  0 or 1.  Mode for week-of-year header display. Default 0.
- week_begin 1..7. Specify first day of the week.  Days of the
-            week  are numbered 1..7 
- row_offset Row offset within the table containing the calendar.
- col_offset Column offset within the table containing the calendar.
- historic   0 or 1.  This option is ignored for dates that do not
-            exceed the range of the built-in perl time functions.
-            For dates that do exceed these ranges, this option
-            specifies the default calculation method.  When set,
-            if the 'cal' utility is available on your system, that
-            will be used rather than Date::Calc. This is and issue
-            since Date::Calc blindly extrapolates the Gregorian
-            calendar, whereas 'cal' takes some of these quirks into
-            account.  If 'cal' is not available on your system,
-            this attribute is meaningless. Default 1.
+=over
 
-See L<HTML::ElementTable(3)> for the special attributes available
-to that class.
+=item month
 
-=item B<Item Query Methods>
+1-12, or Jan-Dec.  Defaults to current month.
 
-The following methods return lists of item symbols that are related
-in some way to the provided list of items.  The returned items may
-then be used as arguments to the glob methods detailed further below.
-When these methods deal with 'rows' and 'columns', they are only
-concerned with the cells in the calendar -- not the cells that might
-be present in the surrounding table if you have extended it.  If you
-have not set row or column offsets, or extended the span of the containing
-table, then these rows and columns are functionally equivalent to the
-table rows and columns.
+=item year
 
-=item row_items(row1, [row2, ...])
+Four digit representation. Defaults to current year.
 
-Returns all items in rows shared by the provided items.
+=item head_m
 
-=item col_items(col1, [col2, ...])
+Specifies whether to display the month header. Default 1.
 
-Returns all items in columns shared by the provided items.
+=item head_y 
 
-=item daycol_items(col1, [col2, ...])
+Specifies whether to display the year header. Default 1.
 
-Same as col_items(), but the returned items are limited
-to those that are not header items (month, year, day-of-week).
+=item head_dow
+
+Specifies whether to display days of the week header. Default 1.
+
+=item head_week
+
+Specifies whether to display the week-of-year numbering. Default 0.
+
+=item week_begin
+
+Specify first day of the week, which can be 1..7, starting with
+Sunday. Defaults to 1, or Sunday. In order to specify Monday, set this
+to 2, and so on.
+
+=item row_offset
+
+Specifies the offset of the first calendar row within the table
+containing the calendar. This is 0 by default, making the first row of
+the table the same as the first row of the calendar.
+
+=item col_offset
+
+Specifies the offset of the first calendar column within the table
+containing the calendar. This is 0 by default, making the first column
+of the table the same as the first row of the calendar.
+
+=item historic
+
+This option is ignored for dates that do not exceed the range of the
+built-in perl time functions. For dates that B<do> exceed these
+ranges, this option specifies the default calculation method. When
+set, if the 'cal' utility is available on your system, that will be
+used rather than the Date::Calc module. This can be an issue since
+Date::Calc blindly extrapolates the Gregorian calendar, whereas 'cal'
+takes some of these quirks into account. If 'cal' is not available on
+your system, this attribute is meaningless. Defaults to 1.
+
+=back
+
+=back
+
+B<Item Query Methods>
+
+The following methods return lists of item symbols that are related in
+some way to the provided list of items. The returned symbols may then
+be used as arguments to the glob methods detailed further below.  When
+these methods deal with 'rows' and 'columns', they are only concerned
+with the cells in the calendar -- not the cells that might be present
+in the surrounding table if you have extended it. If you have not set
+row or column offsets, or extended the span of the containing table,
+then these rows and columns are functionally equivalent to the table
+rows and columns.
+
+=over
+
+=item row_items(item1, [item2, ...])
+
+Returns all item symbols in rows shared by the provided item symbols.
+
+=item col_items(item1, [item2, ...])
+
+Returns all item symbols in columns shared by the provided item
+symbols.
+
+=item daycol_items(col_item1, [col_item2, ...])
+
+Same as col_items(), but the returned item symbols are limited to
+those that are not header items (month, year, day-of-week).
 
 =item row_of(item1, [item2, ...])
 
-Returns the row numbers of rows containing the provided items.
+Returns the row numbers of rows containing the provided item symbols.
 
 =item col_of(item1, [item2, ...])
 
-Returns the column numbers of columns containing the provided items.
+Returns the column numbers of columns containing the provided item
+symbols.
 
 =item lastday()
 
-Returns the last day of the month.
+Returns the number of the last day of the month.
 
 =item dow1st()
 
@@ -1032,63 +1104,67 @@ Returns a list of all headers (month, year, dayheaders)
 
 =item items()
 
-Returns a list of all items in the calendar.
+Returns a list of all item symbols in the calendar.
 
 =item first_col()
 
-Returns the number of the first column of the calendar.  This could
-be different from that of the surrounding table if the table was
-extended.
+Returns the number of the first column of the calendar. This could be
+different from that of the surrounding table if the table was
+extended, but otherwise should be identical.
 
 =item last_col()
 
-Returns the number of the last column of the calendar.  This could
-be different from that of the surrounding table if the table
-was extended.
+Returns the number of the last column of the calendar. This could be
+different from that of the surrounding table if the table was
+extended, but should otherwise be identical.
 
 =item first_row()
 
-Returns the number of the first row of the calendar.  This could
-be different from that of the surrounding table if offsets were
-made.
+Returns the number of the first row of the calendar. This could be
+different from that of the surrounding table if offsets were made.
 
 =item first_week_row()
 
-Returns the number of the first row of the calendar containing
-day items (ie, the first week).  This could vary depending on
-table offsets and header modes.
+Returns the number of the first row of the calendar containing day
+items (ie, the first week). This could vary depending on table offsets
+and header modes.
 
 =item last_row()
 
-Returns the number of the last row of the calendar.  This could
-be different from that of the surrounding table if the table was
-extended.
+Returns the number of the last row of the calendar. This could be
+different from that of the surrounding table if the table was
+extended, but should otherwise be identical.
 
-=item B<Glob Methods>
+=back
 
-Glob methods return references that are functionally equivalent
-to an individual calendar cell.  Mostly, they provide item based
-analogues to the glob methods provided in HTML::ElementTable.
-In methods dealing with rows, columns, and boxes, the globs include
-empty calendar cells (which would otherwise need to be accessed
-through native HTML::ElementTable methods).  The row and column
-numbers returned by the item methods above are compatible with
-the grid based methods in HTML::ElementTable.
+B<Glob Methods>
+
+Glob methods return references that are functionally equivalent to an
+individual calendar cell. Mostly, they provide item based analogues to
+the glob methods provided in HTML::ElementTable. In methods dealing
+with rows, columns, and boxes, the globs include empty calendar cells
+(which would otherwise need to be accessed through native
+HTML::ElementTable methods). The row and column numbers returned by
+the item methods above are compatible with the grid based methods in
+HTML::ElementTable.
 
 For details on how these globs work, check out L<HTML::ElementTable>
 and L<HTML::ElementGlob>.
 
+=over
+
 =item item(item1, [item2, ...])
 
-Returns all cells containing the provided items.
+Returns all cells containing the provided item symbols.
 
 =item item_row(item1, [item2, ...])
 
-Returns all cells in all rows occupied by the provided items.
+Returns all cells in all rows occupied by the provided item symbols.
 
 =item item_col(item1, [item2, ...])
 
-Returns all cells in all columns occupied by the provided items.
+Returns all cells in all columns occupied by the provided item
+symbols.
 
 =item item_daycol(item1, [item2, ...])
 
@@ -1110,74 +1186,78 @@ Returns all non header cells, including empty cells.
 
 Returns all cells in the calendar, including empty cells.
 
-=item B<Transformation Methods>
+=back
 
-The following methods provide ways of translating between various
-symbolic values, coordinates, and representations.
+B<Transformation Methods>
+
+The following methods provide ways of translating between various item
+symbols, coordinates, and other representations.
+
+=over
 
 =item coords_of(item)
 
-Returns the row and column of the provided item, for use with the
-grid based methods in HTML::ElementTable.
+Returns the row and column of the provided item symbol, for use with
+the grid based methods in HTML::ElementTable.
 
 =item item_at(row,column)
 
-Returns the symbol of the item at the provided coordinates, for
+Returns the item symbol of the item at the provided coordinates, for
 use with the item based methods of HTML::CalendarMonth.
 
 =item monthname(monthnum)
 
-Returns the name of the month number provided, where I<monthnum>
-can be 1..12.
+Returns the name (item symbol) of the month number provided, where
+I<monthnum> can be 1..12.
 
 =item monthnum(monthname)
 
-Returns the number (1..12) of the month name provided.  Only
-a minimal case-insensitive match on the month name is necessary.
+Returns the number (1..12) of the month name provided. Only a minimal
+case-insensitive match on the month name is necessary; the proper item
+symbol for the month will be determined from this match.
 
 =item dayname(daynum)
 
-Returns the name of the day of week header for a number of a
-day of the week, where I<daynum> is 1..7.
+Returns the name (item symbol) of the day of week header for a number
+of a day of the week, where I<daynum> is 1..7.
 
 =item daynum(dayname)
 
-Returns the number of the day of the week given the symbolic
-name for that day (Su..Sa).
+Returns the number of the day of the week given the symbolic name for
+that day (Su..Sa).
 
 =item daytime(day)
 
-Returns the number in seconds since the epoch for a given day.  The
-day must be present in the current calendar.
+Returns the number in seconds since the epoch for a given day. The day
+must be present in the current calendar.
 
 =back
 
 =head1 Notes On Dates And Spatial Relationships
 
-One of the nice things about having a calendar represented as
-a table accessible with grid coordinates is that some of the
-trickier date calculations become trivial. You can use packages
-such as I<Date::Manip> or I<Date::Calc> for these sort of things,
-but the algorithms are often derived from a common human
-activity: looking at a calendar on a wall. Say, for instance, that
-you are interested in "the third Friday of every month". Well,
-if you are using a default calendar, then Fridays
-will always be in column 5, starting from 0. Likewise, due to
-the fact that supressed headers are merely I<masked> in the
-actual table, the first row with dates is B<always> 2, even if
-you aren't displaying month, year, or day headers. The third
-friday of every month then becomes C<$c-E<gt>cell(2,5)>. Likewise,
-the "nth dayname/week of the month" can always be mapped to table
-coordinates.
+One of the nice things about having a calendar represented as a table
+accessible with grid coordinates is that some of the trickier date
+calculations become trivial. You can use packages such as
+I<Date::Manip> or I<Date::Calc> for these sort of things, but the
+algorithms are often derived from a common human activity: looking at
+a calendar on a wall. Say, for instance, that you are interested in
+"the third Friday of every month". If you are using a calendar with
+Sunday as the first day of the week, then Fridays will always be in
+column 5, starting from 0. Likewise, due to the fact that supressed
+headers are merely I<masked> in the actual table, the first row with
+dates in a calendar structure will B<always> be 2, even if the month,
+year, or day headers are disabled. The third friday of every month
+therefore becomes C<$c-E<gt>cell(2,5)>, regardless of the particular
+month. Likewise, the "nth dayname/week of the month" can always be
+mapped to table coordinates.
 
-This sort of mapping is obviously affected in our example if you
-have redefined what the first day of the week is, or if you have
-tweaked the table beyond the bounds of the calendar itself. There
-are methods that can help, though.  For instance, in our example
-where we are interested in the 3rd Friday of the month, the row
-number is accessed with C<$c-E<gt>first_week_row + 2>, whereas
-the column number could be derived with C<$c-E<gt>last_col - 1>,
-assuming your week begins with Sunday.
+The particulars of this grid mapping are affected if you have
+redefined what the first day of the week is, or if you have tweaked
+the table beyond the bounds of the calendar itself. There are methods
+that can help under these circumstances, though. For instance, in our
+example where we are interested in the 3rd Friday of the month, the
+row number is accessed with C<$c-E<gt>first_week_row + 2>, whereas the
+column number could be derived with C<$c-E<gt>last_col - 1>.
 
 =head1 REQUIRES
 
@@ -1194,15 +1274,15 @@ Matthew P. Sisk, E<lt>F<sisk@mojotoad.com>E<gt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 1998-2000 Matthew P. Sisk.
-All rights reserved. All wrongs revenged. This program is free
-software; you can redistribute it and/or modify it under the
-same terms as Perl itself.
+Copyright (c) 1998-2000 Matthew P. Sisk. All rights reserved. All
+wrongs revenged. This program is free software; you can redistribute
+it and/or modify it under the same terms as Perl itself.
 
 =head1 ACKNOWLEDGEMENTS
 
 Thanks to William R. Ward for some conceptual nudging.  Thanks to
-Jarkko Hietaniemi for some suggestions on global calendar customs.
+Jarkko Hietaniemi for some suggestions on global calendar
+customs.
 
 =head1 SEE ALSO
 

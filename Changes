@@ -1,4 +1,6 @@
 Revision history for Perl extension HTML-CalendarMonth.
+1.04  Sun Sep 17 12:13:40 CDT 2000
+	- Documentation tweaks and corrections.
 
 1.03  Wed Apr 26 12:06:23 CDT 2000
 	- Added HTML::ElementTable dependency check in Makefile.PL
