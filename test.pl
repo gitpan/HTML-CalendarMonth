@@ -37,7 +37,6 @@ BEGIN {
   }
 
   close(D);
-  $tcount = @cals;
 
   # Figure out calendar generation options
   @modules  = qw(Time::Local Date::Calc DateTime Date::Manip);
@@ -56,16 +55,15 @@ BEGIN {
     push(@tmethods, 'cal');
   }
 
-  $tcount = $tcount * @tmethods;
+  $tcount = @cals * (@tmethods + 1) + 1;
 
 }
 
 # Carry on
-BEGIN { $| = 1; print "1..$tcount\n"; }
-END {print "not ok   1\n" unless $loaded;}
-use HTML::CalendarMonth;
-$loaded = 1;
-print "ok   1\n";
+
+use Test::More tests => $tcount;
+
+BEGIN { use_ok 'HTML::CalendarMonth' }
 
 ######################### End of black magic.
 
@@ -73,8 +71,9 @@ my $DEBUG = 0;
 
 # Compare each case using each method
 @days = qw( Sun Mon Tue Wed Thr Fri Sat );
-$tc = 2;
-foreach $tmethod (@tmethods) {
+foreach $tmethod ('', @tmethods) {
+  my $method = $tmethod || 'auto-select';
+  my $tc = 1;
   foreach $cal (@cals) {
     $c = HTML::CalendarMonth->new(
            year       => $cal->[0],
@@ -82,7 +81,9 @@ foreach $tmethod (@tmethods) {
            week_begin => $cal->[3],
            datetool   => $tmethod,
     );
-    print $c->as_HTML eq $cal->[2] ? "ok " : "not ok ";
+    ok($c->as_HTML eq $cal->[2],
+       sprintf("%3d (%d/%-02d %s 1st day) using %s",
+               $tc, $cal->[0], $cal->[1], $day1, $method));
     if ($DEBUG && $c->as_HTML ne $cal->[2]) {
       local(*DUMP);
       open(DUMP, ">$DEBUG") or die "Could not dump to $DEBUG: $!\n";
@@ -94,8 +95,6 @@ foreach $tmethod (@tmethods) {
       exit;
     }
     $day1 = $days[$cal->[3] - 1];
-    printf("%3d (%d/%-02d %s 1st day) using $tmethod\n",
-           $tc, $cal->[0], $cal->[1], $day1);
     ++$tc;
   }
 print STDERR "\n";

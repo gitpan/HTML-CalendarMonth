@@ -1,5 +1,9 @@
 Revision history for Perl extension HTML-CalendarMonth.
 
+1.12  Mon Feb 28 00:31:16 EST 2005
+	- Fixed auto-select bug that slipped through tests. :(
+	- Fixed tests.
+
 1.11  Sun Feb 27 23:58:04 EST 2005
         - No reason to reinvent the wheel. Language support has now been
           entirely replaced with full locale support as provided by

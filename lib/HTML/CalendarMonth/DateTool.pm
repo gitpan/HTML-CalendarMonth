@@ -100,7 +100,7 @@ sub _summon_date_class {
   my $year = $self->year;
   my $weeknum = $self->weeknum;
   my $historic = $self->historic;
-  my $cal = $self->cal;
+  my $cal = $self->cal_cmd;
   my $dc;
   if ( !$weeknum && eval "require Time::Local" &&
       (!defined $year || (($year >= 1970) && ($year < 2038)))) {
