@@ -172,6 +172,19 @@ HTML::CalendarMonth::Locale - Front end class for DateTime::Locale
 
   my $loc = HTML::CalendarMonth::Locale->new( id => 'en_US' );
 
+  # list of days of the week for locale
+  my @days = $loc->days;
+
+  # list of months of the year for locale
+  my @months = $loc->months;
+
+  # the name of the current locale, as supplied the id parameter to
+  # new()
+  my $locale_name = $loc->id;
+
+  # the actual DateTime::Locale object
+  my $loc = $loc->loc;
+
   1;
 
 =head1 DESCRIPTION
@@ -182,7 +195,7 @@ DateTime::Locale for rendering its calendars. The default locale is
 class method HTML::CalendarMonth::Locale->locales() which in turn
 invokes DateTime::Locale::ids().
 
-This module is mostly inteded for internal usage within
+This module is mostly intended for internal usage within
 HTML::CalendarMonth, but some of its functionality may be of use for
 developers:
 
@@ -198,16 +211,26 @@ Constructor. Takes the following parameters:
 
 Locale id, e.g. 'en_US'.
 
+=item full_days
+
+Specifies whether full day names or their abbreviations are desired.
+Default 0, use abbreviated days.
+
+=item full_months
+
+Specifies whether full month names or their abbreviations are desired.
+Default 1, use full months.
+
 =back
 
 =item id()
 
-Rturns the locale id used during object construction.
+Returns the locale id used during object construction.
 
 =item locale()
 
 Accessor method for the DateTime::Locale class, which in turn offers
-several class moethods of specific interest. See L<DateTime::Locale>.
+several class methods of specific interest. See L<DateTime::Locale>.
 
 =item loc()
 
@@ -237,8 +260,8 @@ in list context or an array ref in scalar context.
 =item minmatch()
 
 Provides a hash reference containing minimal match strings for each
-month of the year, e.g., 'J' for January, 'Mar' for March, 'May'
-for May, etc.
+month of the year, e.g., 'N' for November, 'Ja' for January, 'Jul' for
+July, 'Jun' for June, etc.
 
 =item daynums()
 

@@ -109,11 +109,11 @@ sub _summon_date_class {
   elsif (!$weeknum && $historic && $cal) {
     $dc = __PACKAGE__ . '::Cal';
   }
-  elsif (eval "require DateTime") {
-    $dc = __PACKAGE__ . '::DateTime';
-  }
   elsif(eval "require Date::Calc") {
     $dc = __PACKAGE__ . '::DateCalc';
+  }
+  elsif (eval "require DateTime") {
+    $dc = __PACKAGE__ . '::DateTime';
   }
   elsif(eval "require Date::Manip") {
     $dc = __PACKAGE__ . '::DateManip';
@@ -158,6 +158,8 @@ module offering the same utility methods needed by HTML::CalendarMonth.
 
 =head1 METHODS
 
+=over
+
 =item new()
 
 Constructor. Takes the following parameters:
@@ -167,7 +169,7 @@ Constructor. Takes the following parameters:
 =item year
 
 Year of calendar in question (required). If you are rendering exotic
-dates (i.e. dates outside of 19070 to 2038) then something besides
+dates (i.e. dates outside of 1970 to 2038) then something besides
 Time::Local will be used for calendrical calculations.
 
 =item month
@@ -195,7 +197,11 @@ name of the CalendarMonth handler leaf class, e.g. DateCalc. For the
 
 =back
 
+=back
+
 There are number of methods automatically available:
+
+=over
 
 =item month()
 
@@ -212,35 +218,42 @@ Accessors for the parameters provided to C<new()> above.
 =item dow1st()
 
 Returns the day of week number for the 1st of the C<year> and C<month>
-specified during the call to C<new()>. This can be overridden directly,
-otherwise it relies on the presence of C<dow1st_and_lastday()>.
+specified during the call to C<new()>. Relies on the presence of
+C<dow1st_and_lastday()>.
 
 =item lastday()
 
 Returns the last day of the month for the C<year> and C<month> specified
-during the call to C<new()>. This can be overridden directly, otherwise
-it relies on the presence of C<dow1st_and_lastday()>.
+during the call to C<new()>. Relies on the presence of
+C<dow1st_and_lastday()>.
+
+=back
 
 =head1 Overridden methods
 
-Subclasses of this module must provide at least the C<day_epoch()>
-and C<dow1st_and_lastday()> methods. Optionally, rather than the
-C<dow1st_and_lastday()> method, subclasses can override both C<dow1st()>
-and C<lastday()> individually.
+Subclasses of this module must provide at least the C<day_epoch()> and
+C<dow1st_and_lastday()> methods.
+
+=over
 
 =item dow1st_and_lastday()
 
-Provides a list containing the day of the week of the first day of the
+Required. Provides a list containing the day of the week of the first day of the
 month along with the last day of the month.
 
 =item day_epoch()
 
-For a given day, and optionally C<month> and C<year> if they are
-different from those specified in C<new()>, provide the unix epoch in
-seconds for that day at midnight.
+Optional unless interested in epoch values for wacky dates. For a given
+day, and optionally C<month> and C<year> if they are different from
+those specified in C<new()>, provide the unix epoch in seconds for that
+day at midnight.
+
+=back
 
 If the subclass is expected to provide week of year numbers, three more
 methods are necessary:
+
+=over
 
 =item dow()
 
@@ -261,6 +274,8 @@ different from those specified in C<new()>, provide a list with the week
 number of the year along with the year. (some days of a particular year
 can end up belonging to the prior or following years).
 
+=back
+
 =head1 AUTHOR
 
 Matthew P. Sisk, E<lt>F<sisk@mojotoad.com>E<gt>
@@ -275,4 +290,3 @@ modify it under the same terms as Perl itself.
 
 HTML::CalendarMonth(3), Time::Local(3), DateTime(3), Date::Calc(3),
 Date::Manip(3), cal(1)
-

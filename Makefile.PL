@@ -42,7 +42,7 @@ WriteMakefile(
               NAME         => $NAME,
               VERSION_FROM => 'lib/HTML/CalendarMonth.pm',
               PREREQ_PM    => {
-                               HTML::ElementTable => 0,
+                               HTML::ElementTable => 1.13,
                                DateTime::Locale   => 0,
                               },
               dist         => {

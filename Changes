@@ -1,5 +1,9 @@
 Revision history for Perl extension HTML-CalendarMonth.
 
+1.14  Mon Mar 28 15:32:54 EST 2005
+	- forced dependency on HTML::ElementTable 1.13 or greater
+	- minor brush ups
+
 1.13  Mon Feb 28 16:02:31 EST 2005
         - Streamlined accessor/mutator logic. Uses Class::Accessor now.
         - Fixed a week of year bug introduced in the recent changes.
