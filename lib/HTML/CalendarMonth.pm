@@ -3,7 +3,7 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION $AUTOLOAD @ISA);
 
-$VERSION = '1.07';
+$VERSION = '1.08';
 
 use     Carp;
 use     Time::Local;
@@ -22,7 +22,7 @@ my %COMPLEX_ATTRS = (
 
 		     'week_begin'   => 1,  # What DOW (1-7) is the 1st DOW?
 
-		     'historic'     => 0,  # If able to choose, use 'cal'
+		     'historic'     => 1,  # If able to choose, use 'cal'
 	                              	   # rather than Date::Calc, which
                                            # blindly extrapolates Gregorian
 
@@ -329,7 +329,7 @@ sub _anchor_month {
   # Anchor month
   # If contemporary, between Jan 1, 1970 and 2038 - use timelocal
   # If historic/futuristic, use 'cal' if available
-  # Otherwise use Date::Calc.
+  # Otherwise use Date::Calc or Date::Manip.
   my $self = shift;
 
   my $month = $self->monthnum($self->month);
@@ -373,15 +373,23 @@ sub _anchor_month {
       grep(++$self->{_skips}{$_},3..13);
     }
   }
-  else {
+  elsif(eval "require Date::Calc") {
     # Date::Calc to save the day
-    require Date::Calc;
     Date::Calc->import(qw(Days_in_Month Day_of_Week));
     $lastday = Days_in_Month($year, $month);
     # Date::Calc uses 1..7 as indicies in the week, starting with Monday.
     # Internally, we use 0..6, starting with Sunday.  These turn out
     # to be identical except for Sunday.
-    $dow1st  = Day_of_Week($year, $month, 1);
+    $dow1st = Day_of_Week($year, $month, 1);
+    $dow1st = 0 if $dow1st == 7;
+  }
+  else {
+    # Date::Manip to save the day
+    require Date::Manip;
+    Date::Manip->import(qw(Date_DaysInMonth Date_DayOfWeek));
+    $lastday = Date_DaysInMonth($month, $year);
+    # Date::Manip uses 1 for Monday, 7 for Sunday as well.
+    $dow1st = Date_DayOfWeek($month, 1, $year);
     $dow1st = 0 if $dow1st == 7;
   }
 
@@ -1026,6 +1034,13 @@ The module includes support for week-of-the-year numbering, arbitrary
 1st day of the week definitions, and aliasing so that you can express
 any element in any language HTML can handle.
 
+Dates that are beyond the range of the built-in time functions
+of perl are handled either by the 'cal' command, Date::Calc, or
+Date::Manip. The presence of any one of these utilities and modules
+will suffice for these far flung date calculations. If you want
+to use week-of-year numbering, then either one of the date modules is
+required.
+
 =head1 METHODS
 
 All arguments appearing in [brackets] are optional, and do not
@@ -1098,10 +1113,11 @@ This option is ignored for dates that do not exceed the range of the
 built-in perl time functions. For dates that B<do> exceed these
 ranges, this option specifies the default calculation method. When
 set, if the 'cal' utility is available on your system, that will be
-used rather than the Date::Calc module. This can be an issue since
-Date::Calc blindly extrapolates the Gregorian calendar, whereas 'cal'
-takes some of these quirks into account. If 'cal' is not available on
-your system, this attribute is meaningless. Defaults to 1.
+used rather than the Date::Calc or Date::Manip modules. This can be
+an issue since the date modules blindly extrapolate the Gregorian
+calendar, whereas 'cal' takes some of these quirks into account. If
+'cal' is not available on your system, this attribute is meaningless.
+Defaults to 1.
 
 =back
 
@@ -1327,8 +1343,8 @@ HTML::ElementTable
 
 =head1 OPTIONAL
 
-Date::Calc (only if you want week-of-year numbering or non-contemporary
-dates on a system without the I<cal> command)
+Date::Calc or Date::Manip (only if you want week-of-year numbering
+or non-contemporary dates on a system without the I<cal> command)
 
 =head1 AUTHOR
 
@@ -1339,12 +1355,6 @@ Matthew P. Sisk, E<lt>F<sisk@mojotoad.com>E<gt>
 Copyright (c) 1998-2000 Matthew P. Sisk. All rights reserved. All
 wrongs revenged. This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
-
-=head1 ACKNOWLEDGEMENTS
-
-Thanks to William R. Ward for some conceptual nudging.  Thanks to
-Jarkko Hietaniemi for some suggestions on global calendar
-customs. Thanks to Gael Marziou for some helpful bug spotting.
 
 =head1 SEE ALSO
 

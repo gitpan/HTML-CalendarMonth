@@ -1,4 +1,10 @@
 Revision history for Perl extension HTML-CalendarMonth.
+1.08  Mon Jan  8 19:15:16 CST 2001
+	- Added Date::Manip fallback from Date::Calc,
+	  so a C compiler is not strictly necessary
+	  for folks wanting week-of-year numbering
+	  or exotic dates.
+
 1.07  Wed Nov  8 01:42:40 CST 2000
 	- Day-of-week bug REALLY fixed. Should now work
 	  properly with all perumutations of calendar
