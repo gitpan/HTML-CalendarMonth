@@ -3,7 +3,7 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION $AUTOLOAD @ISA);
 
-$VERSION = '1.04';
+$VERSION = '1.05';
 
 use     Carp;
 use     Time::Local;
@@ -203,15 +203,15 @@ sub _gencal {
   my ($wcnt) = 0; # row count for weeks in grid
 
   my ($dowc) = $self->dow1st;
-  my ($x, $y);
+  my ($r, $c);
   # For each day
   foreach (1 .. $self->lastday) {
     next if $self->{_skips}{$_};
-    $x = $wcnt + 2 + $self->_row_offset;
-    $y = $dowc + $self->_col_offset;
+    $r = $wcnt + 2 + $self->_row_offset;
+    $c= $dowc + $self->_col_offset;
     # This is a bootstrap until we know the number
     # of rows in the month.
-    $self->_itoc($_, [$x, $y]);
+    $self->_itoc($_, [$r, $c]);
     $dowc = ++$dowc % 7;
     
     ++$wcnt unless $dowc || $_ == $self->lastday;
@@ -395,15 +395,40 @@ sub _anchor_month {
 sub _gen_week_nums {
   # Generate week-of-the-year numbers (according to Date::Calc)
   # Week 1 is the week containing the first Thursday of the year.
+  #
+  # From the Date::Calc manpage:
+  #
+  #   $week = Week_Number($year,$month,$day);
+  #
+  #   This function returns the number of the week the given date lies
+  #   in.
+  #
+  #   If the given date lies in the LAST week of the PREVIOUS year,
+  #    "0" is returned.
+  #
+  #   If the given date lies in the FIRST week of the NEXT year,
+  #   "Weeks_in_Year($year) + 1" is returned.
+  #
+  # Therefore we do bounds checks for cases where the first week
+  # number is "0" or the last week number is greater than the number
+  # of weeks in the year.
+  #
+  # For the purposes of these week number calculations, Date::Calc
+  # (and most of the world) consider Sunday to be the last day of the
+  # week. Therefore, if the first day of the month is on Sunday, we
+  # use the 2nd as the start of the month in order for the week
+  # numbers to match correctly.
+
   my $self = shift;
   require Date::Calc;
   Date::Calc->import(qw(Week_Number Week_of_Year Weeks_in_Year));
-  my($fweek, $lweek);
-  $fweek = Week_Number($self->year, $self->monthnum, 1);
+  my($fweek, $lweek, $firstday);
+  $firstday = $self->{_dow1st} ? 1 : 2;
+  $fweek = Week_Number($self->year, $self->monthnum, $firstday);
   $lweek  = Week_Number($self->year, $self->monthnum, $self->lastday);
   my @wnums = ($fweek .. $lweek);
   if ($fweek == 0) {
-    $wnums[0]  = (Week_of_Year($self->year, $self->monthnum, 1))[0];
+    $wnums[0]  = (Week_of_Year($self->year, $self->monthnum, $firstday))[0];
   }
   if ($lweek > Weeks_in_Year($self->year)) {
     $wnums[$#wnums] = (Week_of_Year($self->year,
@@ -918,9 +943,9 @@ HTML::CalendarMonth - Perl extension for generating and manipulating HTML calend
 
  # Using regular HTML::Element creation
  $c2 = HTML::CalendarMonth->new( month => 8, year => 79 );
- $c2->item($c->year, $c->month)->attr(bgcolor => 'wheat');
+ $c2->item($c2->year, $c2->month)->attr(bgcolor => 'wheat');
  $f = HTML::Element->new('font', size => '+2');
- $c2->item($c->year, $c->month)->wrap_content($f);
+ $c2->item($c2->year, $c2->month)->wrap_content($f);
  $c2->item_daycol('Su', 'Sa')->attr(bgcolor => 'cyan');
  print $c2->as_HTML;
 
@@ -1282,7 +1307,7 @@ it and/or modify it under the same terms as Perl itself.
 
 Thanks to William R. Ward for some conceptual nudging.  Thanks to
 Jarkko Hietaniemi for some suggestions on global calendar
-customs.
+customs. Thanks to Gael Marziou for some helpful bug spotting.
 
 =head1 SEE ALSO
 

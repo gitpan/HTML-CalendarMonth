@@ -1,4 +1,8 @@
 Revision history for Perl extension HTML-CalendarMonth.
+1.05  Tue Oct  3 19:28:07 CDT 2000
+	- Day-of-week bug fixed for cases where Sunday is
+	  the first day of the month (such as Oct, 2000).
+
 1.04  Sun Sep 17 12:13:40 CDT 2000
 	- Documentation tweaks and corrections.
 
