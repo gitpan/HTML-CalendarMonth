@@ -5,26 +5,6 @@ $DISTNAME = "HTML-CalendarMonth";
 $NAME = "HTML::CalendarMonth";
 
 $| = 1;
-$missing_modules = 0;
-
-print "Checking for HTML::ElementTable..";
-eval {
-    require HTML::ElementTable;
-};
-if ($@) {
-    print " failed\n";
-    $missing_modules++;
-    print <<EOT;
-
-$@
-HTML::ElementTable is an enhanced HTML::Element from which HTML::CalendarMonth
-inherits.
-
-EOT
-    sleep(2);  # Don't hurry too much
-} else {
-    print " ok\n";
-}
 
 print "Checking for Date::Calc..";
 eval {
@@ -62,6 +42,9 @@ WriteMakefile(
               DISTNAME     => $DISTNAME,
               NAME         => $NAME,
 	      VERSION_FROM => 'lib/HTML/CalendarMonth.pm',
+              PREREQ_PM    => {
+			       HTML::ElementTable => 1.03,
+			      },
 	      dist         => {
 			       COMPRESS => 'gzip -9f',
 			       SUFFIX => 'gz',

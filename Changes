@@ -1,16 +1,25 @@
 Revision history for Perl extension HTML-CalendarMonth.
 
+1.03  Wed Apr 26 12:06:23 CDT 2000
+	- Added HTML::ElementTable dependency check in Makefile.PL
+	- Various bug fixes, under less common circumstances.
+	- Code syntax tweaks.
+
 1.02  Tue Jan 25 20:05:05 CST 2000
 	- Cleaned up -w noise
 	- Added mailing list information
+
 1.01  Thu Sep 16 15:33:41 CDT 1999
 	- Distribution patch
 	- Purged erroneus Date::Manip references
+
 1.00  Tue Jul 27 21:55:43 CDT 1999
 	- abstracted item/coord translations to cell refs
 	  rather than redundant coord lookups
 	- initial release
+
 0.09  Thu Jul  8 19:02:39 CDT 1999
 	- added week counts and arbitrary 1st DOW
+
 0.08  Fri Jul 10 19:58:28 1998
 	- first public version

@@ -3,7 +3,7 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION $AUTOLOAD @ISA);
 
-$VERSION = '1.02';
+$VERSION = '1.03';
 
 use     Carp;
 use     Time::Local;
@@ -130,7 +130,7 @@ sub _head {
 # (does not affect European week number column)
   my $self = shift;
   # If either headeing active, return true
-  if (scalar @_) {
+  if (@_) {
     $self->_head_my(@_); $self->_head_dow(@_);
   }
   $self->_head_my || $self->_head_dow;
@@ -160,6 +160,10 @@ sub _date {
     my ($month,$year) = @_;
     $month && $year || croak "date method requires month and year";
     croak "Date already set" if $self->_initialized();
+
+    $month <= 12 && $month >= 1 or croak "Month $month out of range (1-12)\n";
+    $year > 0 or croak "Negative years are unacceptable\n";
+
     $self->month($self->monthname($month));
     $self->year($year);
     $month = $self->monthnum($month);
@@ -249,17 +253,20 @@ sub _gencal {
   if ($self->_head_my) {
     if ($self->_head_m) {
       $self->item($self->month)->attr('colspan',$width - $self->_year_span);
-    } else {
+    }
+    else {
       $self->item($self->month)->mask(1);
       $self->item($self->year)->attr('colspan', $width);
     }
     if ($self->_head_y) {
       $self->item($self->year)->attr('colspan',$self->_year_span);
-    } else {
+    }
+    else {
       $self->item($self->year)->mask(1);
       $self->item($self->month)->attr('colspan', $width);
     }
-  } else {
+  }
+  else {
     $self->row($self->first_row)->mask(1);
   }
 
@@ -274,7 +281,8 @@ sub _gencal {
   }
   if ($self->_head_dow) {
     grep($self->item($_)->replace_content($self->alias($_)), @days);
-  } else {
+  }
+  else {
     $self->row($self->first_row + 1)->mask(1);
   }
 
@@ -333,11 +341,12 @@ sub _anchor_month {
     # Timelocal is valid
     require Time::Local;
     ++$self->{_tlmode};
-    --$month;      # 0-12
-    $year -= 1900; # tl style
+    --$month;      # map to 0-12
+    $year -= 1900; # years since 1900...hooh-rah for POSIX...
     my $nmonth = $month + 1;
     my $nyear  = $year;
     if ($nmonth > 11) {
+      # Happy new year
       $nmonth = 0;
       ++$nyear;
     }
@@ -346,9 +355,12 @@ sub _anchor_month {
     # Last day is one day prior to 1st of month after
     $lastday = (localtime(Time::Local::timelocal(0,0,0,1,$nmonth,$nyear)
 			  - 60*60*24))[3];
-  } elsif ($self->_historic && ($CAL = `which cal`)) {
+  }
+  elsif ($self->_historic && ($CAL = `which cal`)) {
     chomp $CAL;
+    -x $CAL or croak "cal \"$CAL\" is not executable\n";
     my @cal    = grep(!/^\s*$/,`$CAL $month $year`);
+    chomp @cal;
     my @days   = grep(/\d+/,split(/\s+/,$cal[2]));
     $dow1st    = 6 - $#days;
     ($lastday) = $cal[$#cal] =~ /(\d+)\s*$/;
@@ -359,7 +371,8 @@ sub _anchor_month {
     if ($month == 9 && $year == 1752) {
       grep(++$self->{_skips}{$_},3..13);
     }
-  } else {
+  }
+  else {
     # Date::Calc to save the day
     require Date::Calc;
     Date::Calc->import(qw(Days_in_Month Day_of_Week));
@@ -374,6 +387,7 @@ sub _anchor_month {
   # If the first day of the week is not Sunday...
   $dow1st = ($dow1st - ($self->_week_begin - 1)) % 7;
 
+  # Ahhh...anyone feeling normalized?
   $self->{_dow1st}  = $dow1st;
   $self->{_lastday} = $lastday;
 }
@@ -415,7 +429,7 @@ sub row_items {
     }
   }
   @i = keys %i;
-  scalar @i ? @i : $i[0];
+  @i ? @i : $i[0];
 }
 sub col_items {
   # Return all item cells in the columns occupied
@@ -469,7 +483,8 @@ sub daytime {
     $secs = Time::Local::timelocal(0,0,0,$day,
 				   $self->monthnum($self->month)+1,
 				   $self->year);
-  } else {
+  }
+  else {
     require Date::Calc;
     my $days = Date::Calc::Delta_Days(
 				      # Jan 1, 1970
@@ -566,7 +581,7 @@ sub last_row {
 sub item {
   # Return TD elements containing items
   my $self = shift;
-  scalar @_ || croak "Item(s) must be provided";
+  @_ || croak "Item(s) must be provided";
   $self->cell(grep(defined $_, map($self->coords_of($_), @_)));
 }
 sub item_row {
@@ -661,7 +676,8 @@ sub coords_of {
   # Convert an item into grid coordinates
   my $self = shift;
   my $ref = $self->_itoc(@_);
-  ref $ref ? $ref->position : undef;
+  my @pos = ref $ref ? $ref->position : ();
+  @pos ? (@pos[$#pos - 1, $#pos]) : ();
 }
 
 sub item_at {
@@ -706,22 +722,25 @@ sub monthname {
   # Check/return month...returns name
   # Accepts 1-12, or Jan..Dec
   my $self = shift;
-  return $self->month unless scalar @_;
+  return $self->month unless @_;
   my @mn;
   my $month; # appease strict
   foreach $month (@_) {
     if ($month =~ /^\d+$/) {
       $month >= 1 && $month <= 12 || return 0;	
       push(@mn,$months[$month-1]);
-    } else {
+    }
+    else {
       $month = ucfirst(lc($month));
       if (exists $monthnum{$month}) {
 	push(@mn,$month);
-      } else {
+      }
+      else {
 	# Make one last attempt
 	if ($month =~ /^($mmpat)/) {
 	  push(@mn,$minmatch{$1});
-	} else {
+	}
+	else {
 	  return undef;
 	}
       }
@@ -743,7 +762,7 @@ sub dayname {
   # Check/return day...returns name
   # Accepts 1..7, or Su..Sa
   my $self = shift;
-  scalar @_ || croak "Day must be provided";
+  @_ || croak "Day must be provided";
   my @dn;
   my $day; # appease strict
   foreach $day (@_) {
@@ -751,11 +770,13 @@ sub dayname {
       $day >= 1 && $day <= 7 || return undef;
       # week_begin is at least 1, so skew is automatic
       push(@dn,$days[($day - 1 + $self->_week_begin - 1) % 8]);
-    } else {
+    }
+    else {
       $day = ucfirst(lc($day));
       if (exists $daynum{$day}) {
 	push(@dn,$day);
-      } else {
+      }
+      else {
 	return undef;
       }
     }
@@ -828,7 +849,8 @@ sub new {
     $attr = lc($_);
     if (exists $COMPLEX_ATTRS{$attr}) {
       $attrs{$attr} = $val;
-    } else {
+    } 
+    else {
       $tattrs{$_} = $val;
     }
   }
@@ -1130,13 +1152,41 @@ day must be present in the current calendar.
 
 =back
 
+=head1 Notes On Dates And Spatial Relationships
+
+One of the nice things about having a calendar represented as
+a table accessible with grid coordinates is that some of the
+trickier date calculations become trivial. You can use packages
+such as I<Date::Manip> or I<Date::Calc> for these sort of things,
+but the algorithms are often derived from a common human
+activity: looking at a calendar on a wall. Say, for instance, that
+you are interested in "the third Friday of every month". Well,
+if you are using a default calendar, then Fridays
+will always be in column 5, starting from 0. Likewise, due to
+the fact that supressed headers are merely I<masked> in the
+actual table, the first row with dates is B<always> 2, even if
+you aren't displaying month, year, or day headers. The third
+friday of every month then becomes C<$c-E<gt>cell(2,5)>. Likewise,
+the "nth dayname/week of the month" can always be mapped to table
+coordinates.
+
+This sort of mapping is obviously affected in our example if you
+have redefined what the first day of the week is, or if you have
+tweaked the table beyond the bounds of the calendar itself. There
+are methods that can help, though.  For instance, in our example
+where we are interested in the 3rd Friday of the month, the row
+number is accessed with C<$c-E<gt>first_week_row + 2>, whereas
+the column number could be derived with C<$c-E<gt>last_col - 1>,
+assuming your week begins with Sunday.
+
 =head1 REQUIRES
 
 HTML::ElementTable
 
 =head1 OPTIONAL
 
-Date::Calc (only if you want week-of-year numbering)
+Date::Calc (only if you want week-of-year numbering or non-contemporary
+dates on a system without the I<cal> command)
 
 =head1 AUTHOR
 
