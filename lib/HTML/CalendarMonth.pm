@@ -3,7 +3,7 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION @ISA);
 
-$VERSION = '1.14';
+$VERSION = '1.15';
 
 use Carp;
 

@@ -2,8 +2,6 @@ README
 Changes
 MANIFEST
 Makefile.PL
-test.pl
-test.dat
 lib/HTML/CalendarMonth.pm
 lib/HTML/CalendarMonth/Locale.pm
 lib/HTML/CalendarMonth/DateTool.pm
@@ -12,3 +10,13 @@ lib/HTML/CalendarMonth/DateTool/Cal.pm
 lib/HTML/CalendarMonth/DateTool/DateCalc.pm
 lib/HTML/CalendarMonth/DateTool/DateManip.pm
 lib/HTML/CalendarMonth/DateTool/DateTime.pm
+t/00_basic.t
+t/01_autodetect.t
+t/02_timelocal.t
+t/03_datetime.t
+t/04_datemanip.t
+t/05_datecalc.t
+t/06_cal.t
+t/20_i8n.t
+t/test.dat
+t/testload.pm
