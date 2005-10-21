@@ -8,7 +8,7 @@ use HTML::CalendarMonth;
 use HTML::CalendarMonth::Locale;
 
 my $basque;
-eval join('', <DATA>);
+eval do { local $/; <DATA> };
 die "Oops on eval: $@\n" if $@;
 
 # i8n (use basque as example)
@@ -16,10 +16,10 @@ my @stoof = HTML::CalendarMonth::Locale->locales;
 ok(@stoof > 20, 'i8n: locale ids retreived');
 my($year, $month) = (2000, 12);
 my $b = HTML::CalendarMonth->new(
-  year       => $year,
-  month      => $month,
-  head_week  => 1,
-  locale     => 'eu',
+  year      => $year,
+  month     => $month,
+  head_week => 1,
+  locale    => 'eu',
 );
 my $bstr = $b->as_HTML;
 chomp($bstr);

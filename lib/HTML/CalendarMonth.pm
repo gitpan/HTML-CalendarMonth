@@ -3,7 +3,7 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION @ISA);
 
-$VERSION = '1.15';
+$VERSION = '1.16';
 
 use Carp;
 
@@ -151,9 +151,8 @@ sub _gencal {
 
   # Table can contain the days now, so replace our bootstrap coordinates
   # with references to the actual elements.
-  my $cellref;
   foreach (keys %$itoc) {
-    $cellref = $self->cell(@{$itoc->{$_}});
+    my $cellref = $self->cell(@{$itoc->{$_}});
     $self->itoc($_, $cellref);
     $self->ctoi($cellref, $_);
   }
@@ -162,7 +161,7 @@ sub _gencal {
   my $width = $self->head_week ? 8 : 7;
 
   # month/year headers
-  $cellref = $self->cell($self->row_offset, $self->col_offset);
+  my $cellref = $self->cell($self->row_offset, $self->col_offset);
   $self->itoc($self->month, $cellref);
   $self->ctoi($cellref, $self->month);
   $cellref = $self->cell($self->row_offset,
@@ -199,7 +198,7 @@ sub _gencal {
   foreach (0..$#$days) {
     # Transform for week_begin 1..7
     $trans = ($_ + $self->week_begin - 1) % 7;
-    $cellref = $self->cell(1 + $self->row_offset, $_ + $self->col_offset);
+    my $cellref = $self->cell(1 + $self->row_offset, $_ + $self->col_offset);
     $self->itoc($days->[$trans], $cellref);
     $self->ctoi($cellref, $days->[$trans]);
   }
@@ -221,7 +220,7 @@ sub _gencal {
     foreach ($self->_numeric_week_nums) {
       $ws = "w$_";
       $self->item_alias($ws, $_) unless $self->item_aliased($ws);
-      $cellref = $self->cell($row_count, $self->last_col);
+      my $cellref = $self->cell($row_count, $self->last_col);
       $self->itoc($ws, $cellref);
       $self->ctoi($cellref, $ws);
       $self->item($ws)->replace_content($self->item_alias($ws));
@@ -438,7 +437,6 @@ sub first_week_col { first_col(@_) }
 sub last_col {
   # What's the max col of the calendar?
   my $self = shift;
-  $self->head_week ? $self->last_week_col + 1 : $self->last_week_col;
   $self->head_week ? $self->last_week_col + 1 : $self->last_week_col;
 }
 

@@ -97,25 +97,20 @@ sub lastday { (shift->dow1st_and_lastday)[1] }
 sub _summon_date_class {
   my $self = shift;
   return $self->datetool if $self->datetool;
-  my $year = $self->year;
-  my $weeknum = $self->weeknum;
-  my $historic = $self->historic;
-  my $cal = $self->cal_cmd;
   my $dc;
-  if ( !$weeknum && eval "require Time::Local" &&
-      (!defined $year || (($year >= 1970) && ($year < 2038)))) {
+  if ( $self->_test_for_timelocal ) {
     $dc = __PACKAGE__ . '::TimeLocal';
   }
-  elsif (!$weeknum && $historic && $cal) {
+  elsif ( $self->_test_for_cal ) {
     $dc = __PACKAGE__ . '::Cal';
   }
-  elsif(eval "require Date::Calc") {
+  elsif ( $self->_test_for_datecalc ) {
     $dc = __PACKAGE__ . '::DateCalc';
   }
-  elsif (eval "require DateTime") {
+  elsif ( $self->_test_for_datetime ) {
     $dc = __PACKAGE__ . '::DateTime';
   }
-  elsif(eval "require Date::Manip") {
+  elsif( $self->_test_for_datemanip ) {
     $dc = __PACKAGE__ . '::DateManip';
   }
   else {
@@ -127,6 +122,37 @@ __NOTOOL
   }
   $dc;
 }
+
+sub _dump_tests {
+  my $self = shift;
+  print "Time::Local : ", $self->_test_for_timelocal, "\n";
+  print "        cal : ", $self->_test_for_cal, "\n";
+  print " Date::Calc : ", $self->_test_for_datecalc, "\n";
+  print "   DateTime : ", $self->_test_for_datetime, "\n";
+  print "Date::Manip : ", $self->_test_for_datemanip, "\n";
+}
+
+sub _test_for_timelocal {
+  my $self = shift;
+  my $year = $self->year;
+  my $weeknum = $self->weeknum;
+  !$weeknum && eval "require Time::Local" &&
+    (!defined $year || (($year >= 1970) && ($year < 2038)));
+}
+
+sub _test_for_cal {
+  my $self = shift;
+  my $weeknum = $self->weeknum;
+  my $historic = $self->historic;
+  my $cal = $self->cal_cmd;
+  !$weeknum && $historic && $cal;
+}
+
+sub _test_for_datecalc  { eval "require Date::Calc"  }
+
+sub _test_for_datetime  { eval "require DateTime"    }
+
+sub _test_for_datemanip { eval "require Date::Manip" }
 
 1;
 

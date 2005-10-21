@@ -57,8 +57,8 @@ sub week_of_year {
   $month ||= $self->month;
   $year  ||= $self->year;
   my $dt = $self->_new_dt($year, $month, $day);
-  my($year, $week) = $dt->week;
-  ($year, $week);
+  # returns ($year, $week)
+  $dt->week;
 }
 
 sub _new_dt {
