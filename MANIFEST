@@ -20,3 +20,4 @@ t/06_cal.t
 t/20_i8n.t
 t/test.dat
 t/testload.pm
+META.yml                                 Module meta-data (added by MakeMaker)

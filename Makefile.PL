@@ -45,6 +45,7 @@ WriteMakefile(
                                Time::Local        => 0,
                                HTML::ElementTable => 1.13,
                                DateTime::Locale   => 0,
+                               Class::Accessor    => 0,
                               },
               dist         => {
                                COMPRESS => 'gzip -9f',

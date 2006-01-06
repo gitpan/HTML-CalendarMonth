@@ -148,11 +148,11 @@ sub _test_for_cal {
   !$weeknum && $historic && $cal;
 }
 
-sub _test_for_datecalc  { eval "require Date::Calc"  }
+sub _test_for_datecalc  { eval "require Date::Calc";  return !$@ }
 
-sub _test_for_datetime  { eval "require DateTime"    }
+sub _test_for_datetime  { eval "require DateTime";    return !$@ }
 
-sub _test_for_datemanip { eval "require Date::Manip" }
+sub _test_for_datemanip { eval "require Date::Manip"; return !$@ }
 
 1;
 

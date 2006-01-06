@@ -1,5 +1,8 @@
 Revision history for Perl extension HTML-CalendarMonth.
 
+1.17  Fri Jan  6 16:09:46 EST 2006
+        - Updated tests with more recent test cases
+
 1.16  Fri Oct 21 16:23:48 EDT 2005
         - Polished tests
         - Fixed a Date::Calc testing procedure

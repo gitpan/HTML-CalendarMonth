@@ -9,7 +9,7 @@ my $DEBUG = 0;
 
 require Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw( $Dat_Dir check_datetool
+@EXPORT = qw( $Dat_Dir check_datetool case_count
               check_basic_with_datetool
               check_woy_with_datetool
             );
@@ -65,6 +65,8 @@ while (<D>) {
 }
 
 close(D);
+
+sub case_count { scalar @Cals }
 
 sub check_datetool {
   my $datetool = shift;
