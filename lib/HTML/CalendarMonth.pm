@@ -3,11 +3,11 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION @ISA);
 
-$VERSION = '1.17';
+$VERSION = '1.18';
 
 use Carp;
 
-use HTML::ElementTable 1.13;
+use HTML::ElementTable 1.15;
 use HTML::CalendarMonth::Locale;
 use HTML::CalendarMonth::DateTool;
 

@@ -19,21 +19,23 @@ use File::Spec;
 use HTML::CalendarMonth;
 use HTML::CalendarMonth::DateTool;
 
-my $base_dir;
+my($base_dir, $vol, $dir);
 BEGIN {
   my $pkg = __PACKAGE__;
   $pkg =~ s%::%/%g;
   $pkg .= '.pm';
   $pkg = File::Spec->canonpath($INC{$pkg});
-  $pkg =~ s/\/[^\/]+\.pm$//;
-  $base_dir = $pkg;
+  my $file;
+  ($vol, $dir, $file) = File::Spec->splitpath($pkg);
+  $base_dir = File::Spec->catpath($vol, $dir);
 }
 $Dat_Dir = $base_dir;
 
 my($tcount, $rds, %dates, @tmethods, @twy_methods, @Cals);
 
 # Required test dates
-open(D, "$Dat_Dir/test.dat") or die "Problem reading $Dat_Dir/test.dat: $!\n";
+my $dat_file = File::Spec->catpath($vol, $dir, 'test.dat');
+open(D, "<$dat_file") or die "Problem reading $dat_file: $!\n";
 $rds = <D>;
 foreach (split(' ', $rds)) {
   ++$dates{$_};

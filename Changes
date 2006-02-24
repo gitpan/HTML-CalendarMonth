@@ -1,5 +1,11 @@
 Revision history for Perl extension HTML-CalendarMonth.
 
+1.18  Fri Feb 24 15:53:41 EST 2006
+        - Fixed some scoping issues in DateTool/DateCalc.pm (thanks
+          Carl Franks)
+        - Fixed a Win32 test module location issue (File::Spec tricks)
+          (thanks Carl Franks)
+
 1.17  Fri Jan  6 16:09:46 EST 2006
         - Updated tests with more recent test cases
 

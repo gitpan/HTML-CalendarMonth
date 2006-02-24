@@ -43,9 +43,10 @@ WriteMakefile(
               VERSION_FROM => 'lib/HTML/CalendarMonth.pm',
               PREREQ_PM    => {
                                Time::Local        => 0,
-                               HTML::ElementTable => 1.13,
+                               HTML::ElementTable => 1.15,
                                DateTime::Locale   => 0,
                                Class::Accessor    => 0,
+                               File::Spec         => 0,
                               },
               dist         => {
                                COMPRESS => 'gzip -9f',
