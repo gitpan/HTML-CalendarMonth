@@ -12,6 +12,7 @@ require Exporter;
 @EXPORT = qw( $Dat_Dir check_datetool case_count
               check_basic_with_datetool
               check_woy_with_datetool
+              dq_nums
             );
 
 use File::Spec;
@@ -27,7 +28,7 @@ BEGIN {
   $pkg = File::Spec->canonpath($INC{$pkg});
   my $file;
   ($vol, $dir, $file) = File::Spec->splitpath($pkg);
-  $base_dir = File::Spec->catpath($vol, $dir);
+  $base_dir = File::Spec->catpath($vol, $dir, '');
 }
 $Dat_Dir = $base_dir;
 
@@ -68,6 +69,17 @@ while (<D>) {
 
 close(D);
 
+#############
+
+# guard against HTML::Tree starting to quote numeric attrs as of
+# v3.19_02
+
+sub dq_nums {
+  my $str = shift;
+  $str =~ s/\"(\d+)\"/$1/g;
+  return $str;
+}
+
 sub case_count { scalar @Cals }
 
 sub check_datetool {
@@ -89,7 +101,7 @@ sub check_basic_with_datetool {
       datetool   => $datetool,
     );
     my $day1 = $days[$cal->[3] - 1];
-    cmp_ok($c->as_HTML, 'eq', $cal->[2],
+    cmp_ok(dq_nums($c->as_HTML), 'eq', $cal->[2],
        sprintf("(%d/%-02d %s 1st day) using %s",
                $cal->[0], $cal->[1], $day1, $method));
     if ($DEBUG && $c->as_HTML ne $cal->[2]) {
@@ -109,7 +121,7 @@ sub check_woy_with_datetool {
       head_week  => 1,
       datetool   => $datetool,
     );
-    my $ct = $cal->as_HTML;
+    my $ct = dq_nums($cal->as_HTML);
     chomp $ct;
     cmp_ok($ct, 'eq', $tc, "($year/$month week of year) using $datetool");
     if ($DEBUG && $ct ne $tc) {

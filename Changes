@@ -1,5 +1,16 @@
 Revision history for Perl extension HTML-CalendarMonth.
 
+1.19  Sat Mar 15 00:47:26 EDT 2008
+        - Fixed longstanding test failure due to HTML::Tree (properly)
+          deciding to put quotes around numeric attributes in tags.
+        - Also changed i8n test to Zulu rather than Basque since the
+          DateTime::Local::eu (Basque) module no longer has
+          abbreviated day names
+        - Some of the DateTool modules had a minor bug in add_days() not
+          checking for defined vs 0
+        - I released a calendar-related module update on the Ides of
+          March. I'm just sayin'.
+
 1.18  Fri Feb 24 15:53:41 EST 2006
         - Fixed some scoping issues in DateTool/DateCalc.pm (thanks
           Carl Franks)

@@ -9,7 +9,7 @@ use vars qw(@ISA $VERSION);
 
 @ISA = qw(HTML::CalendarMonth::DateTool);
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 use Date::Manip qw(Date_DaysInMonth Date_DayOfWeek DateCalc
                    UnixDate Date_SecsSince1970);
@@ -47,7 +47,7 @@ sub dow {
 
 sub add_days {
   my($self, $delta, $day, $month, $year) = @_;
-  $delta || croak "Delta (in days) required.\n";
+  defined $delta || croak "Delta (in days) required.\n";
   $day   || croak "Day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;

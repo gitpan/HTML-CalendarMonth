@@ -62,11 +62,11 @@ ACKNOWLEDGMENTS
 Thanks to William R. Ward for some conceptual nudging. Thanks to Fabian
 Aichele, Jarkko Hietaniemi, Wolfgang Jürgensen, and David 'Sniper'
 Rigaudiere for some suggestions on global calendar customs. Thanks to
-Gael Marziou, Raul Rivero, T. Bugra Uytun, and Philipp W. for some
-helpful bug spotting.
+Gael Marziou, Raul Rivero, Ricardo Signes, T. Bugra Uytun, and Philipp
+W. for some helpful bug spotting.
 
 COPYRIGHT
 
-Copyright (c) 1999-2005 Matthew P. Sisk. All rights reserved. All wrongs
+Copyright (c) 1999-2008 Matthew P. Sisk. All rights reserved. All wrongs
 revenged. This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
