@@ -11,7 +11,7 @@ use Carp;
 use DateTime::Locale;
 
 use vars qw($VERSION);
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 my %Register;
 
@@ -22,8 +22,8 @@ sub new {
   my %parms = @_;
   my $id = $parms{id} or croak "Locale id required (eg 'en_US')\n";
   $self->{id} = $id;
-  $self->{full_days}   = exists $parms{full_days}   ? $parms{full_days}   : 0;
-  $self->{full_months} = exists $parms{full_months} ? $parms{full_months} : 1;
+  $self->{full_days}   = defined $parms{full_days}   ? $parms{full_days}   : 0;
+  $self->{full_months} = defined $parms{full_months} ? $parms{full_months} : 1;
   unless ($Register{$id}) {
     $Register{$id} = $self->locale->load($id)
       or croak "Problem loading locale '$id'\n";
@@ -42,27 +42,57 @@ sub id          { shift->{id}          }
 sub full_days   { shift->{full_days}   }
 sub full_months { shift->{full_months} }
 
+sub first_day_of_week {
+  # for backwards compat, H::CM has always used 1..7 = (Sun .. Sat)
+  my $d = shift->loc->first_day_of_week;
+  ($d % 7) + 1;
+}
+
 sub days {
   my $self = shift;
   my $id = $self->id;
   unless ($Register{$id}{days}) {
-    # we've always used Sunday as first day...
-    my $method = $self->full_days ? 'day_names' : 'day_abbreviations';
-    my @days = @{$self->loc->$method};
+    my $method = $self->full_days > 0 ? 'day_stand_alone_wide'
+                                      : 'day_stand_alone_abbreviated';
+    # adjust to H::CM standard expectation, 1st day Sun
+    # Sunday is first, regardless of what the calendar considers to be
+    # the first day of the week
+    my @days  = @{$self->loc->$method};
     unshift(@days, pop @days);
     $Register{$id}{days} = \@days;
   }
   wantarray ? @{$Register{$id}{days}} : $Register{$id}{days};
 }
 
+sub narrow_days {
+  my $self = shift;
+  my $id   = $self->id;
+  unless ($Register{$id}{narrow_days}) {
+    # Sunday is first, regardless of what the calendar considers to be
+    # the first day of the week
+    my @days = @{ $self->loc->day_stand_alone_narrow };
+    unshift(@days, pop @days);
+    $Register{$id}{narrow_days} = \@days;
+  }
+  wantarray ? @{$Register{$id}{narrow_days}} : $Register{$id}{narrow_days};
+}
+
 sub months {
   my $self = shift;
   my $id = $self->id;
   unless ($Register{$id}{months}) {
-    my $method = $self->full_months ? 'month_names' : 'month_abbreviations';
+    my $method = $self->full_months > 0 ? 'month_stand_alone_wide'
+                                        : 'month_stand_alone_abbreviated';
     $Register{$id}{months} = [@{$self->loc->$method}];
   }
   wantarray ? @{$Register{$id}{months}} : $Register{$id}{months};
+}
+
+sub narrow_months {
+  my $self = shift;
+  my $id   = $self->id;
+  $Register{$id}{narrow_months} ||= [$self->loc->month_stand_alone_narrow];
+  wantarray ? @{$Register{$id}{narrow_months}} : $Register{$id}{narrow_months};
 }
 
 sub minmatch {
@@ -250,12 +280,23 @@ were provided to C<new()>, this list will either be abbreviations or
 full names. The default uses abbreviated day names. Returns a list in
 list context or an array ref in scalar context.
 
+=item narrow_days()
+
+Returns a list of short day abbreviations, beginning with Sunday. The
+narrow abbreviations are not guaranteed to be unique (i.e. 'S' for both
+Sat and Sun).
+
 =item months()
 
 Returns a list of months of the year, beginning with January. Depending
 on which attributes were provided to C<new()>, this list will either be
 full names or abbreviations. The default uses full names. Returns a list
 in list context or an array ref in scalar context.
+
+=item narrow_months()
+
+Returns a list of short month abbreviations, beginning with January. The
+narrow abbreviations are not guaranteed to be unique.
 
 =item minmatch()
 
@@ -287,13 +328,18 @@ This is the method used to generate the minimal match hash referenced
 above. Given an arbitrary list, a hash reference will be returned with
 minimal match strings as keys and full names as values.
 
+=item first_day_of_week()
+
+Returns a number from 0 to 6 representing the first day of the week,
+where 0 represents Sunday.
+
 =head1 AUTHOR
 
 Matthew P. Sisk, E<lt>F<sisk@mojotoad.com>E<gt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005 Matthew P. Sisk. All rights reserved. All wrongs
+Copyright (c) 2010 Matthew P. Sisk. All rights reserved. All wrongs
 revenged. This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 

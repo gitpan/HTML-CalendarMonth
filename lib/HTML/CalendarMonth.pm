@@ -3,50 +3,32 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION @ISA);
 
-$VERSION = '1.19';
+$VERSION = '1.20';
 
 use Carp;
 
-use HTML::ElementTable 1.15;
+use HTML::ElementTable 1.18;
 use HTML::CalendarMonth::Locale;
 use HTML::CalendarMonth::DateTool;
 
 @ISA = qw(HTML::CalendarMonth::Accessor HTML::ElementTable);
 
-# Calmonth attribute method overrides
-
-sub row_offset {
-  # Displace calendar how many rows into table?
-  my $self = shift;
-  if (@_) {
-    $_[0] >= 0 or croak "Offset must be zero or more";
-  }
-  $self->SUPER::row_offset(@_);
-}
-
-sub col_offset {
-  # Displace calendar how many columns into table?
-  my $self = shift;
-  if (@_) {
-    $_[0] >= 0 or croak "Offset must be zero or more";
-  }
-  $self->SUPER::col_offset(@_);
-}
+# alias
 
 sub item_alias {
   my($self, $item) = splice(@_, 0, 2);
-  defined $item or croak "Item name required";
+  defined $item or croak "item name required";
   $self->alias->{$item} = shift if @_;
   $self->alias->{$item} || $item;
 }
 
 sub item_aliased {
   my($self, $item) = splice(@_, 0, 2);
-  defined $item or croak "Item name required.\n";
+  defined $item or croak "item name required.\n";
   defined $self->alias->{$item};
 }
 
-# Header Toggles
+# header toggles
 
 sub _head {
   # Set/test entire heading (month,year,and dow headers) (does not
@@ -68,10 +50,10 @@ sub _initialized {
   @_ ? $self->{_initialized} = shift : $self->{_initialized};
 }
 
-# Circa Interface
+# circa interface
 
 sub _date {
-  # Set target month, year
+  # set target month, year
   my $self = shift;
   if (@_) {
     my ($month, $year) = @_;
@@ -89,22 +71,25 @@ sub _date {
     $self->year($year);
     $month = $self->monthnum($month);
 
-    # Trigger _gencal...this should be the only place where this occurs
+    # trigger _gencal...this should be the only place where this occurs
     $self->_gencal;
   }
   return($self->month, $self->year);
 }
 
 # locale accessors
-sub locales                 { shift->loc->locales          }
-sub locale_days             { shift->loc->days             }
-sub locale_daynum           { shift->loc->daynum(@_)       }
-sub locale_months           { shift->loc->months           }
-sub locale_daynums          { shift->loc->daynums          }
-sub locale_minmatch         { shift->loc->minmatch         }
-sub locale_monthnum         { shift->loc->monthnum(@_)     }
-sub locale_monthnums        { shift->loc->monthnums        }
-sub locale_minmatch_pattern { shift->loc->minmatch_pattern }
+sub locales                 { shift->loc->locales           }
+sub locale_days             { shift->loc->days              }
+sub locale_daynum           { shift->loc->daynum(@_)        }
+sub locale_narrow_days      { shift->loc->narrow_days       }
+sub locale_months           { shift->loc->months            }
+sub locale_daynums          { shift->loc->daynums           }
+sub locale_narrow_months    { shift->loc->narrow_months     }
+sub locale_minmatch         { shift->loc->minmatch          }
+sub locale_monthnum         { shift->loc->monthnum(@_)      }
+sub locale_monthnums        { shift->loc->monthnums         }
+sub locale_minmatch_pattern { shift->loc->minmatch_pattern  }
+sub locale_first_dow        { shift->loc->first_day_of_week }
 
 # class factory access
 
@@ -113,13 +98,13 @@ sub class_datetool { __PACKAGE__ . '::DateTool' }
 sub class_locale   { __PACKAGE__ . '::Locale' }
 
 sub _gencal {
-  # Generate internal calendar representation
+  # generate internal calendar representation
   my $self = shift;
 
-  # New calendar...clobber day-specific settings
+  # new calendar...clobber day-specific settings
   my $itoc = $self->_itoc({});
 
-  # Figure out dow of 1st day of the month as well as last day of the
+  # figure out dow of 1st day of the month as well as last day of the
   # month (uses date calculator backends)
   $self->_anchor_month();
 
@@ -129,12 +114,12 @@ sub _gencal {
   my ($dowc) = $self->dow1st;
   my $skips  = $self->_caltool->skips;
 
-  # For each day
+  # for each day
   foreach (1 .. $self->lastday) {
     next if $skips->{$_};
-    my $r = $wcnt + 2 + $self->row_offset;
-    my $c = $dowc + $self->col_offset;
-    # This is a bootstrap until we know the number of rows in the month.
+    my $r = $wcnt + 2;
+    my $c = $dowc;
+    # this is a bootstrap until we know the number of rows in the month.
     $itoc->{$_} = [$r, $c];
     $dowc = ++$dowc % 7;
     ++$wcnt unless $dowc || $_ == $self->lastday;
@@ -146,10 +131,9 @@ sub _gencal {
   my $col_extent = 6;
   $col_extent += 1 if $self->head_week;
 
-  $self->extent($row_extent + $self->row_offset,
-                $col_extent + $self->col_offset);
+  $self->extent($row_extent, $col_extent);
 
-  # Table can contain the days now, so replace our bootstrap coordinates
+  # table can contain the days now, so replace our bootstrap coordinates
   # with references to the actual elements.
   foreach (keys %$itoc) {
     my $cellref = $self->cell(@{$itoc->{$_}});
@@ -161,11 +145,10 @@ sub _gencal {
   my $width = $self->head_week ? 8 : 7;
 
   # month/year headers
-  my $cellref = $self->cell($self->row_offset, $self->col_offset);
+  my $cellref = $self->cell(0, 0);
   $self->itoc($self->month, $cellref);
   $self->ctoi($cellref, $self->month);
-  $cellref = $self->cell($self->row_offset,
-                         $width - $self->year_span + $self->col_offset);
+  $cellref = $self->cell(0, $width - $self->year_span);
   $self->itoc($self->year,  $cellref);
   $self->ctoi($cellref, $self->year);
 
@@ -198,7 +181,7 @@ sub _gencal {
   foreach (0..$#$days) {
     # Transform for week_begin 1..7
     $trans = ($_ + $self->week_begin - 1) % 7;
-    my $cellref = $self->cell(1 + $self->row_offset, $_ + $self->col_offset);
+    my $cellref = $self->cell(1, $_);
     $self->itoc($days->[$trans], $cellref);
     $self->ctoi($cellref, $days->[$trans]);
   }
@@ -209,9 +192,9 @@ sub _gencal {
     $self->row($self->first_row + 1)->mask(1);
   }
 
-  # Week number column
+  # week number column
   if ($self->head_week) {
-    # Week nums can collide with days. Use "w" in front of the number
+    # week nums can collide with days. Use "w" in front of the number
     # for uniqueness, and automatically alias to just the number (unless
     # already aliased, of course).
     $self->_gen_week_nums();
@@ -228,7 +211,7 @@ sub _gencal {
     }
   }
 
-  # Fill in days of the month
+  # fill in days of the month
   my $i;
   foreach my $r ($self->first_week_row .. $self->last_row) {
     foreach my $c ($self->first_col .. $self->last_week_col) {
@@ -237,15 +220,102 @@ sub _gencal {
     }
   }
 
-  # Defaults
-  $self->table->attr(align => 'center');
-  $self->item($self->month)->attr(align => 'left') if $self->head_m;
-  $self->attr(bgcolor => 'white') unless defined $self->attr('bgcolor');
-  $self->attr(border => 1)        unless defined $self->attr('border');
-  $self->attr(cellspacing => 0)   unless defined $self->attr('cellspacing');
-  $self->attr(cellpadding => 0)   unless defined $self->attr('cellpadding');
+  # css classes
+  if ($self->enable_css) {
+    $self                             ->push_attr(class => 'hcm-table'     );
+    $self->item_row($self->dayheaders)->push_attr(class => 'hcm-day-head'  );
+    $self->item    ($self->year)      ->push_attr(class => 'hcm-year-head' );
+    $self->item    ($self->month)     ->push_attr(class => 'hcm-month-head');
+    $self->item    ($self->week_nums) ->push_attr(class => 'hcm-week-head' )
+      if $self->head_week;
+  }
+
+  if ($self->semantic_css) {
+    my $today = $self->today;
+    if ($today < 0) {
+      $self->item($self->days)->push_attr(class => 'hcm-past');
+    }
+    elsif ($today == 0) {
+      $self->item($self->days)->push_attr(class => 'hcm-future');
+    }
+    else {
+      for my $d ($self->days) {
+        if ($d < $today) {
+          $self->item($d)->push_attr(class => 'hcm-past');
+        }
+        elsif ($d > $today) {
+          $self->item($d)->push_attr(class => 'hcm-future');
+        }
+        else {
+          $self->item($d)->push_attr(class => 'hcm-today');
+        }
+      }
+    }
+  }
 
   $self;
+}
+
+sub default_css {
+  my $hbgc = '#DDDDDD';
+  my $bc   = '#888888';
+
+  my $str = <<__CSS;
+<style type="text/css">
+  <!--
+
+  table.hcm-table {
+    border: thin solid $bc;
+    border-collapse: collapse;
+    text-align: right;
+  }
+
+  .hcm-table td, th {
+    padding-left:  2px;
+    padding-right: 2px;
+  }
+
+  .hcm-year-head  {
+    text-align: right;
+    background-color: $hbgc;
+  }
+
+  .hcm-month-head {
+    text-align: left;
+    background-color: $hbgc;
+  }
+
+  .hcm-day-head   {
+    text-align: right;
+    background-color: $hbgc;
+    border-bottom: thin solid $bc;
+   }
+
+  .hcm-week-head  {
+    font-size: small;
+    background-color: $hbgc;
+    border-left: thin solid $bc;
+  }
+
+-->
+</style>
+__CSS
+
+}
+
+sub _datetool {
+  my $self = shift;
+  my $ct;
+  if (! ($ct = $self->_caltool)) {
+    $ct = $self->_caltool($self->class_datetool->new(
+      year     => $self->year,
+      month    => $self->month,
+      weeknum  => $self->head_week,
+      historic => $self->historic,
+      datetool => $self->datetool,
+    ));
+  }
+  $ct;
 }
 
 sub _anchor_month {
@@ -257,17 +327,8 @@ sub _anchor_month {
   my $month = $self->monthnum($self->month);
   my $year  = $self->year;
 
-  my $tool = $self->_caltool;
-  if (!$tool) {
-    $tool = $self->class_datetool->new(
-              year     => $year,
-              month    => $month,
-              weeknum  => $self->head_week,
-              historic => $self->historic,
-              datetool => $self->datetool,
-            );
-    $self->_caltool($tool);
-  }
+  my $tool = $self->_datetool;
+
   my $dow1st  = $tool->dow1st;
   my $lastday = $tool->lastday;
 
@@ -292,8 +353,8 @@ sub _gen_week_nums {
   my($year, $month, $lastday) = ($self->year, $self->monthnum, $self->lastday);
 
   my $tool = $self->_caltool;
-  $tool->can('week_of_year')
-    or croak "Oops. $tool not set up for week of year calculations.\n";
+  croak "Oops. " . ref $tool . " not set up for week of year calculations.\n"
+    unless $tool->can('week_of_year');
 
   my $fdow = $self->dow1st;
   my $delta = 4 - $fdow;
@@ -311,35 +372,35 @@ sub _gen_week_nums {
 
   my $fweek = $tool->week_of_year(@ft);
   my $lweek = $tool->week_of_year(@lt);
-  my @wnums = $fweek .. $lweek;
+  my @wnums = $fweek > $lweek ? ($fweek, 1 .. $lweek) : ($fweek .. $lweek);
 
-  # Do we have days above our first Thursday?
+  # do we have days above our first Thursday?
   if ($self->row_of($ft[0]) != $self->first_week_row) {
     unshift(@wnums, $wnums[0] -1);
   }
 
-  # Do we have days below our last Thursday?
+  # do we have days below our last Thursday?
   if ($self->row_of($lt[0]) != $self->last_row) {
     push(@wnums, $wnums[-1] + 1);
   }
 
-  # First visible week is from last year
+  # first visible week is from last year
   if ($wnums[0] == 0) {
     $wnums[0] = $tool->week_of_year($tool->add_days(-7, $ft[0]));
   }
 
-  # Last visible week is from subsequent year
+  # last visible week is from subsequent year
   if ($wnums[-1] > $lweek) {
     $wnums[-1] = $tool->week_of_year($tool->add_days(7, $lt[0]));
   }
 
-  $self->_weeknums(@wnums);
+  $self->_weeknums(\@wnums);
 }
 
-# Month hooks
+# month hooks
 
 sub row_items {
-  # Given a list of items, return all items in rows shared by the
+  # given a list of items, return all items in rows shared by the
   # provided items.
   my $self = shift;
   my($item,$row,$col,$i,@i,%i);
@@ -355,20 +416,20 @@ sub row_items {
 }
 
 sub col_items {
-  # Return all item cells in the columns occupied by the provided list
+  # return all item cells in the columns occupied by the provided list
   # of items.
   my $self = shift;
   $self->_col_items($self->first_row,$self->last_row,@_);
 }
 
 sub daycol_items {
-  # Same as col_items(), but excludes header cells.
+  # same as col_items(), but excludes header cells.
   my $self = shift;
   $self->_col_items($self->first_week_row,$self->last_row,@_);
 }
 
 sub _col_items {
-  # Given row bounds and a list of items, return all item elements
+  # given row bounds and a list of items, return all item elements
   # in the columns occupied by the provided items. Does not return
   # empty cells.
   my($self, $rfirst, $rlast) = splice(@_, 0, 3);
@@ -385,7 +446,7 @@ sub _col_items {
 }
 
 sub daytime {
-  # Return seconds since epoch for a given day
+  # return seconds since epoch for a given day
   my($self, $day) = splice(@_, 0, 2);
   $day or croak "Must specify day of month";
   croak "Day does not exist" unless $self->_daycheck($day);
@@ -393,66 +454,65 @@ sub daytime {
 }
 
 sub week_nums {
-  # Return list of all week numbers
-  map("w$_", shift->_numeric_week_nums);
+  # return list of all week numbers
+  my @wnums = map("w$_", shift->_numeric_week_nums);
+  wantarray ? @wnums : \@wnums;
 }
 
 sub _numeric_week_nums {
-  # Return list of all week numbers as numbers
+  # return list of all week numbers as numbers
   my $self = shift;
-  $self->head_week ? @{$self->_weeknums} : ();
+  return unless $self->head_week;
+  wantarray ? @{$self->_weeknums} : $self->_weeknums;
 }
 
 sub days {
-  # Return list of all days of the month (1..$c->lastday).
+  # return list of all days of the month (1..$c->lastday).
   my $self = shift;
   my $skips = $self->_caltool->skips;
-  grep(!$skips->{$_}, (1 .. $self->lastday));
+  my @days = grep { !$skips->{$_} } (1 .. $self->lastday);
+  wantarray ? @days : \@days;
 }
 
 sub dayheaders {
-  # Return list of all day headers (Su..Sa).
+  # return list of all day headers (Su..Sa).
   shift->locale_days;
 }
 
 sub headers {
-  # Return list of all headers (month,year,dayheaders)
+  # return list of all headers (month,year,dayheaders)
   my $self = shift;
-  ($self->year, $self->month, $self->dayheaders);
+  wantarray ? ($self->year, $self->month, $self->dayheaders)
+            : [$self->year, $self->month, $self->dayheaders];
 }
 
 sub items {
-  # Return list of all items (days, headers)
+  # return list of all items (days, headers)
   my $self = shift;
-  ($self->headers, $self->days);
+  wantarray ? ($self->headers, $self->days)
+            : [$self->headers, $self->days];
 }
 
-sub first_col {
-  # Where is the first column of the calendar within the table?
-  shift->col_offset();
-}
+use constant first_col => 0;
 
-sub first_week_col { first_col(@_) }
+sub first_week_col { shift->first_col }
 
 sub last_col {
-  # What's the max col of the calendar?
+  # what's the max col of the calendar?
   my $self = shift;
   $self->head_week ? $self->last_week_col + 1 : $self->last_week_col;
 }
 
 sub last_week_col {
-  # What column does the last DOW fall in? Should be the same as
+  # what column does the last DOW fall in? Should be the same as
   # last_col unless head_week is activated
   shift->first_col + 6;
 }
 
-sub first_row {
-  # Where is the first row of the calendar?
-  shift->row_offset();
-}
+use constant first_row => 0;
 
 sub first_week_row {
-  # Returns the first row containing days of the month. This used to
+  # returns the first row containing days of the month. This used to
   # take into account whether the header rows were active or not,
   # but since masking was implemented this should always be offset 2
   # from the first row (thereby taking into account the month/year
@@ -462,76 +522,70 @@ sub first_week_row {
 }
 
 sub last_row {
-  # Last row of the calendar
+  # last row of the calendar
   my $self = shift;
   return ($self->coords_of($self->lastday))[0];
 }
 
 sub last_week_row { last_row(@_) }
 
-# Custom glob interfaces
+# custom glob interfaces
 
 sub item {
-  # Return TD elements containing items
+  # return TD elements containing items
   my $self = shift;
-  @_ || croak "Item(s) must be provided";
+  @_ || croak "item(s) must be provided";
   $self->cell(grep(defined $_, map($self->coords_of($_), @_)));
 }
 
 sub item_row {
-  # Return a glob of the rows of a list of items, including empty cells.
+  # return a glob of the rows of a list of items, including empty cells.
   my $self = shift;
-  $self->_item_row($self->first_col, $self->last_col, @_);
+  $self->row(map { $self->row_of($_) } @_);
 }
 
 sub item_day_row {
-  # Same as item_row, but excludes possible week number cells
+  # same as item_row, but excludes possible week number cells
   my $self = shift;
-  $self->_item_row($self->first_col, $self->last_week_col, @_);
-}
-
-sub _item_row {
-  # Given column bounds and a list of items, return a glob representing
-  # the cells in the rows occupied by the provided items, including
-  # empty cells.
-  my($self, $cfirst, $clast) = splice(@_, 0, 3);
-  defined $cfirst && defined $clast or croak "No items provided";
-  my($row, $col, @coords);
-  foreach $row (map($self->row_of($_), @_)) {
-    foreach $col ($cfirst .. $clast) {
-      push(@coords, $row, $col);
+  return $self->item_row(@_) unless $self->head_week;
+  my(%rows, @coords);
+  for my $r (map { $self->row_of($_) } @_) {
+    next if ++$rows{$r} > 1;
+    for my $c ($self->first_col .. $self->last_week_col) {
+      push(@coords, ($r, $c));
     }
   }
   $self->cell(@coords);
 }
 
 sub item_week_nums {
-  # Glob of all week numbers
+  # glob of all week numbers
   my $self = shift;
   $self->item($self->week_nums);
 }
 
 sub item_col {
-  # Return a glob of the cols of a list of items, including empty cells.
+  # return a glob of the cols of a list of items, including empty cells.
   my $self = shift;
   $self->_item_col($self->first_row, $self->last_row, @_);
 }
 
 sub item_daycol {
-  # Same as item_col(), but excludes header cells.
+  # same as item_col(), but excludes header cells.
   my $self = shift;
   $self->_item_col($self->first_week_row, $self->last_row, @_);
 }
 
 sub _item_col {
-  # Given row bounds and a list of items, return a glob representing
+  # given row bounds and a list of items, return a glob representing
   # the cells in the columns occupied by the provided items, including
   # empty cells.
   my($self, $rfirst, $rlast) = splice(@_, 0, 3);
-  defined $rfirst && defined $rlast or croak "No items provided";
-  my($row, $col, @coords);
-  foreach $col (map($self->col_of($_), @_)) {
-    foreach $row ($rfirst .. $rlast) {
+  defined $rfirst && defined $rlast or Carp::confess "No items provided";
+  my(%seen, @coords);
+  foreach my $col (map { $self->col_of($_) } @_) {
+    next if ++$seen{$col} > 1;
+    foreach my $row ($rfirst .. $rlast) {
       push(@coords, $row, $col);
     }
   }
@@ -539,36 +593,36 @@ sub _item_col {
 }
 
 sub item_box {
-  # Return a glob of the box defined by two items
+  # return a glob of the box defined by two items
   my($self, $item1, $item2) = splice(@_, 0, 3);
   defined $item1 && defined $item2 or croak "Two items required";
   $self->box($self->coords_of($item1), $self->coords_of($item2));
 }
 
 sub all {
-  # Return a glob of all calendar cells, including empty cells.
+  # return a glob of all calendar cells, including empty cells.
   my $self = shift;
   $self->box( $self->first_row => $self->first_col,
               $self->last_row  => $self->last_col   );
 }
 
 sub alldays {
-  # Return a glob of all cells other than header cells
+  # return a glob of all cells other than header cells
   my $self = shift;
   $self->box( $self->first_week_row => $self->first_col,
               $self->last_row       => $self->last_week_col );
 }
 
 sub allheaders {
-  # Return a glob of all header cells
+  # return a glob of all header cells
   my $self = shift;
   $self->item($self->headers);
 }
 
-# Transformation Methods
+# transformation Methods
 
 sub coords_of {
-  # Convert an item into grid coordinates
+  # convert an item into grid coordinates
   my $self = shift;
   my $ref = $self->itoc(@_);
   my @pos = ref $ref ? $ref->position : ();
@@ -576,13 +630,13 @@ sub coords_of {
 }
 
 sub item_at {
-  # Convert grid coords into item
+  # convert grid coords into item
   my $self = shift;
   $self->ctoi($self->cell(@_));
 }
 
 sub itoc {
-  # Item to grid
+  # item to grid
   my($self, $item, $ref) = splice(@_, 0, 3);
   defined $item or croak "item required";
   my $itoc = $self->_itoc;
@@ -594,7 +648,7 @@ sub itoc {
 }
 
 sub ctoi {
-  # Cell reference to item
+  # cell reference to item
   my($self, $refstring, $item) = splice(@_, 0, 3);
   defined $refstring or croak "cell id required";
   my $ctoi = $self->_ctoi;
@@ -615,7 +669,7 @@ sub col_of {
 }
 
 sub monthname {
-  # Check/return month...returns name. Accepts 1-12, or Jan..Dec
+  # check/return month...returns name. Accepts 1-12, or Jan..Dec
   my $self = shift;
   return $self->month unless @_;
   my(@mn, $month);
@@ -634,7 +688,7 @@ sub monthname {
         push(@mn, $month);
       }
       else {
-        # Make one last attempt
+        # make one last attempt
         if ($month =~ /^($mmpat)/) {
           push(@mn, $minmatch->{$1});
         }
@@ -648,7 +702,7 @@ sub monthname {
 }
 
 sub monthnum {
-  # Check/return month, returns number. Accepts 1-12, or Jan..Dec
+  # check/return month, returns number. Accepts 1-12, or Jan..Dec
   my $self = shift;
   my $monthnum = $self->locale_monthnums;
   my @mn;
@@ -658,7 +712,7 @@ sub monthnum {
 }
 
 sub dayname {
-  # Check/return day...returns name. Accepts 1..7, or Su..Sa
+  # check/return day...returns name. Accepts 1..7, or Su..Sa
   my $self = shift;
   @_ || croak "Day must be provided";
   my(@dn, $day);
@@ -684,7 +738,7 @@ sub dayname {
 }
 
 sub daynum {
-  # Check/return day number 1..7, returns number. Accepts 1..7,
+  # check/return day number 1..7, returns number. Accepts 1..7,
   # or Su..Sa
   my $self = shift;
   my $daynum = $self->locale_daynums;
@@ -694,10 +748,10 @@ sub daynum {
   $#dn > 0 ? @dn : $dn[0];
 }
 
-# Tests-n-checks
+# tests-n-checks
 
 sub _dayheadcheck {
-  # Test day head names
+  # test day head names
   my($self, $name) = splice(@_, 0, 2);
   $name or croak "Name missing";
   return undef if $name =~ /^\d+$/;
@@ -705,20 +759,20 @@ sub _dayheadcheck {
 }
 
 sub _daycheck {
-  # Check if an item is a day of the month (1..31)
+  # check if an item is a day of the month (1..31)
   my($self, $item) = splice(@_, 0, 2);
-  $item = shift or croak "Item required";
-  # Can't just invert _headcheck because coords_of() needs _daycheck,
+  $item = shift or croak "item required";
+  # can't just invert _headcheck because coords_of() needs _daycheck,
   # and _headcheck uses coords_of()
   $item =~ /^\d{1,2}$/ && $item <= 31;
 }
 
 sub _headcheck {
-  # Check if an item is a header
+  # check if an item is a header
   !_daycheck(@_);
 }
 
-# Constructors/Destructors
+# constructors/destructors
 
 sub new {
   my $class = shift;
@@ -739,10 +793,6 @@ sub new {
   # set defaults
   $self->set_defaults;
 
-  # Enable blank cell fill so BGCOLOR shows up by default
-  # (HTML::ElementTable)
-  $self->blank_fill(1);
-
   my $month = delete $attrs{month};
   my $year  = delete $attrs{year};
   if (!$month || !$year) {
@@ -755,20 +805,63 @@ sub new {
   $self->year($year);
 
   # set overrides
-  $self->$_($attrs{$_}) foreach (keys %attrs);
+  for my $k (keys %attrs) {
+    $self->$k($attrs{$k}) if defined $attrs{$k};
+  }
 
-  $self->loc($self->class_locale->new(
+  my $loc = $self->class_locale->new(
     id          => $self->locale,
     full_days   => $self->full_days,
     full_months => $self->full_months,
-  )) or croak "Problem creating locale " . $self->locale . "\n";
+  ) or croak "Problem creating locale " . $self->locale . "\n";
+  $self->loc($loc);
 
-  # For now, this is the only time this will every happen for this
+  my $dt = $self->class_datetool->new(
+      year     => $self->year,
+      month    => $self->month,
+      weeknum  => $self->head_week,
+      historic => $self->historic,
+      datetool => $self->datetool,
+  );
+  $self->_caltool($dt);
+
+  $self->week_begin($loc->first_day_of_week)
+    unless defined $attrs{week_begin};
+
+  my $dom_now = defined $attrs{today} ? $dt->dom_now(delete $attrs{today})
+                                      : $dt->dom_now;
+  $self->today($dom_now);
+
+  my $alias = $attrs{alias} || {};
+  if ($self->full_days < 0) {
+    my @full   = $self->locale_days;
+    my @narrow = $self->locale_narrow_days;
+    for my $i (0 .. $#narrow) {
+      $alias->{$full[$i]} = $narrow[$i];
+    }
+  }
+  if ($self->full_months < 0) {
+    my @full   = $self->locale_months;
+    my @narrow = $self->locale_narrow_months;
+    for my $i (0 .. $#narrow) {
+      $alias->{$full[$i]} = $narrow[$i];
+    }
+  }
+  $self->alias($alias) if keys %$alias;
+
+  # for now, this is the only time this will every happen for this
   # object. It is now 'initialized'.
   $self->_date($month, $year);
 
   $self;
 }
+
+### deprecated
+
+use constant row_offset => 0;
+use constant col_offset => 0;
+
+###
 
 {
 
@@ -787,46 +880,50 @@ use Class::Accessor;
 
 my %Objects;
 
-# Default complex attributes
+# default complex attributes
 my %Calmonth_Attrs = (
-  head_m      => 1,  # Month heading mode
-  head_y      => 1,  # Year heading mode
-  head_dow    => 1,  # DOW heading mode
-  head_week   => 0,  # European week number mode
-  year_span   => 2,  # Default col span of year
+  head_m      => 1,     # month heading mode
+  head_y      => 1,     # year heading mode
+  head_dow    => 1,     # DOW heading mode
+  head_week   => 0,     # weak of year
+  year_span   => 2,     # default col span of year
 
-  week_begin  => 1,  # What DOW (1-7) is the 1st DOW?
+  today       => undef, # DOM, if not now
+  week_begin  => 1,     # what DOW (1-7) is the 1st DOW?
 
-  historic    => 1,  # If able to choose, use 'cal'
-                     # rather than Date::Calc, which
-                     # blindly extrapolates Gregorian
+  historic    => 1,     # if able to choose, use 'cal'
+                        # rather than Date::Calc, which
+                        # blindly extrapolates Gregorian
 
-  row_offset  => 0,  # Displacment within table
-  col_offset  => 0,
+  alias       => {},    # what gets displayed if not
+                        # the default item
 
-  alias       => {}, # What gets displayed if not
-                     # the default item
-
-  month       => '', # These will get initialized
-  year        => '',
+  month       => undef, # these will get initialized
+  year        => undef,
 
   locale      => 'en_US',
   full_days   => 0,
   full_months => 1,
 
-  datetool    => '',
-  caltool     => '',
+  datetool    => undef,
+
+  enable_css   => 1,
+  semantic_css => 0,
 
   # internal muckety muck
-  _cal      => '',
+  _cal      => undef,
   _itoc     => {},
   _ctoi     => {},
-  _caltool  => '',
-  _weeknums => '',
+  _caltool  => undef,
+  _weeknums => undef,
 
-  dow1st   => '',
-  lastday  => '',
-  loc      => '',
+  dow1st   => undef,
+  lastday  => undef,
+  loc      => undef,
+
+  # deprecated
+  row_offset => undef,
+  col_offset => undef,
 );
 
 __PACKAGE__->mk_accessors(keys %Calmonth_Attrs);
@@ -880,7 +977,6 @@ sub set_defaults {
 
 } # end HTML::CalendarMonth::Accessor
 
-# Go forth and prosper.
 1;
 
 __END__
@@ -1016,12 +1112,14 @@ C<locale>, see the C<alias> attribute below.
 =item full_days
 
 Specifies whether or not to use full day names or their abbreviated
-names. Default is 0, use abbreviated names.
+names. Default is 0, use abbreviated names. Use -1 for 'narrow' mode,
+the shortest (not guaranteed to be unique) abbreviations.
 
 =item full_months
 
 Specifies whether or not to use full month names or their abbriviated
-names. Default is 1, use full names.
+names. Default is 1, use full names. Use -1 for 'narrow' mode, the
+shortest (not guaranteed to be unique) abbreviations.
 
 =item alias
 
@@ -1038,19 +1136,29 @@ Specifies whether to display the week-of-year numbering. Default 0.
 
 Specify first day of the week, which can be 1..7, starting with Sunday.
 Defaults to 1, or Sunday. In order to specify Monday, set this to 2,
-and so on.
+and so on. By default, this is determined based on the locale.
 
-=item row_offset
+=item enable_css
 
-Specifies the offset of the first calendar row within the table
-containing the calendar. This is 0 by default, making the first row of
-the table the same as the first row of the calendar.
+Set some handy CSS class attributes on elements, enabled by default.
+Currently the classes are:
 
-=item col_offset
+  hcm-table       Set on the <lt>table<gt> tag of the calendar
+  hcm-day-head    Set on the day-of-week <lt>tr<gt> or <lt>td<gt> tags
+  hcm-year-head   Set on the <lt>td<gt> tag for the year
+  hcm-month-head  Set on the <lt>td<gt> tag for the month
+  hcm-week-head   Set on the <lt>td<gt> tags for the week-of-year
 
-Specifies the offset of the first calendar column within the table
-containing the calendar. This is 0 by default, making the first column
-of the table the same as the first row of the calendar.
+=item semantic_css
+
+Sets some additional CSS class attributes on elements, disabled by
+default. The notion of 'today' is taken either from the system clock
+(default) or from the 'today' parameter as provided to new(). Currently
+these classes are:
+
+  hcm-today    Set on the <lt>td<gt> tag for today, if present
+  hcm-past     Set on the <lt>td<gt> tags for prior days, if present
+  hcm-future   Set on the <lt>td<gt> tags for subsequent days, if present
 
 =item historic
 
@@ -1069,15 +1177,10 @@ system, this attribute is meaningless. Defaults to 1.
 
 B<Item Query Methods>
 
-The following methods return lists of item symbols that are related in
-some way to the provided list of items. The returned symbols may then
-be used as arguments to the glob methods detailed further below. When
-these methods deal with 'rows' and 'columns', they are only concerned
-with the cells in the calendar -- not the cells that might be present
-in the surrounding table if you have extended it. If you have not set
-row or column offsets, or extended the span of the containing table,
-then these rows and columns are functionally equivalent to the table
-rows and columns.
+The following methods return lists of item *symbols* (28, 29, 'Thu',
+...) that are related in some way to the provided list of items. The
+returned symbols may then be used as arguments to the glob methods
+detailed further below.
 
 =over
 
@@ -1096,24 +1199,24 @@ that are not header items (month, year, day-of-week).
 
 =item row_of(item1, [item2, ...])
 
-Returns the row numbers of rows containing the provided item symbols.
+Returns the row indices of rows containing the provided item symbols.
 
 =item col_of(item1, [item2, ...])
 
-Returns the column numbers of columns containing the provided
+Returns the column indices of columns containing the provided
 item symbols.
 
 =item lastday()
 
-Returns the number of the last day of the month.
+Returns the day number (symbol) of the last day of the month.
 
 =item dow1st()
 
-Returns the column number for the first day of the month.
+Returns the column index for the first day of the month.
 
 =item days()
 
-Returns a list of all days of the month.
+Returns a list of all days of the month as numbers.
 
 =item dayheaders()
 
@@ -1125,36 +1228,30 @@ Returns a list of all headers (month, year, dayheaders)
 
 =item items()
 
-Returns a list of all item symbols in the calendar.
+Returns a list of all item symbols (day number, header values) in
+the calendar.
 
 =item first_col()
 
-Returns the number of the first column of the calendar. This could be
-different from that of the surrounding table if the table was extended,
-but otherwise should be identical.
+Returns the index of the first column of the calendar. This is always 0.
 
 =item last_col()
 
-Returns the number of the last column of the calendar. This could be
-different from that of the surrounding table if the table was extended,
-but should otherwise be identical.
+Returns the index of the last column of the calendar (note that this
+could be the week-of-year column if head_week is enabled).
 
 =item first_row()
 
-Returns the number of the first row of the calendar. This could be
-different from that of the surrounding table if offsets were made.
+Returns the index of the first row of the calendar. This is always 0.
 
 =item first_week_row()
 
-Returns the number of the first row of the calendar containing day items
-(ie, the first week). This could vary depending on table offsets and
-header modes.
+Returns the index of the first row of the calendar containing day items
+(ie, the first week). This could vary depending on header modes.
 
 =item last_row()
 
-Returns the number of the last row of the calendar. This could be
-different from that of the surrounding table if the table was extended,
-but should otherwise be identical.
+Returns the index of the last row of the calendar.
 
 =back
 
@@ -1216,8 +1313,8 @@ symbols, coordinates, and other representations.
 
 =item coords_of(item)
 
-Returns the row and column of the provided item symbol, for use with the
-grid based methods in HTML::ElementTable.
+Returns the row and column coordinates of the provided item symbol, for
+use with the grid based methods in HTML::ElementTable.
 
 =item item_at(row,column)
 
@@ -1252,30 +1349,15 @@ must be present in the current calendar.
 
 =back
 
-=head1 Notes On Dates And Spatial Relationships
+B<Transformation Methods>
 
-One of the nice things about having a calendar represented as a table
-accessible with grid coordinates is that some of the trickier date
-calculations become trivial. You can use packages such as I<Date::Manip>
-or I<Date::Calc> for these sort of things, but the algorithms are often
-derived from a common human activity: looking at a calendar on a wall.
-Say, for instance, that you are interested in "the third Friday of every
-month". If you are using a calendar with Sunday as the first day of the
-week, then Fridays will always be in column 5, starting from 0.
-Likewise, due to the fact that supressed headers are merely I<masked> in
-the actual table, the first row with dates in a calendar structure will
-B<always> be 2, even if the month, year, or day headers are disabled.
-The third friday of every month therefore becomes C<$c-E<gt>cell(2,5)>,
-regardless of the particular month. Likewise, the "nth dayname/week of
-the month" can always be mapped to table coordinates.
+=over
 
-The particulars of this grid mapping are affected if you have redefined
-what the first day of the week is, or if you have tweaked the table
-beyond the bounds of the calendar itself. There are methods that can
-help under these circumstances, though. For instance, in our example
-where we are interested in the 3rd Friday of the month, the row number
-is accessed with C<$c-E<gt>first_week_row + 2>, whereas the column
-number could be derived with C<$c-E<gt>last_col - 1>.
+=item default_css()
+
+Returns a simple style sheet as a string that can be used in an HTML
+document in conjunction with the classes assigned to elements when css
+is enabled.
 
 =head1 REQUIRES
 
@@ -1283,8 +1365,9 @@ HTML::ElementTable
 
 =head1 OPTIONAL
 
-Date::Calc or Date::Manip (only if you want week-of-year numbering or
-non-contemporary dates on a system without the I<cal> command)
+Date::Calc, DateTime, or Date::Manip (only if you want week-of-
+year numbering or non-contemporary dates on a system without the
+I<cal> command)
 
 =head1 AUTHOR
 
@@ -1292,7 +1375,7 @@ Matthew P. Sisk, E<lt>F<sisk@mojotoad.com>E<gt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 1998-2008 Matthew P. Sisk. All rights reserved. All wrongs
+Copyright (c) 1998-2010 Matthew P. Sisk. All rights reserved. All wrongs
 revenged. This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 

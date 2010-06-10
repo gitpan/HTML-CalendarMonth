@@ -14,13 +14,15 @@ unless (eval "require DateTime"  ||
   print <<EOT;
 Could not locate DateTime, Date::Calc, or Date::Manip (don't worry).
 
-The presence of One of these modules is only required if you want to use
-week-of- year numbering, or if you plan on manipulating dates that
-exceed the ability of localtime() (Prior to Jan 1, 1970 or after 2038).
+The presence of one of these modules is only required if you want to
+use week-of-year numbering, or if you plan on manipulating dates that
+exceed the ability of localtime() (Prior to Jan 1, 1970 or after 2038
+on 32-bit systems).
 
 You can obtain any of these modules from CPAN:
-    http://search.cpan.org/search?dist=DateTime
+
     http://search.cpan.org/search?dist=Date-Calc
+    http://search.cpan.org/search?dist=DateTime
     http://search.cpan.org/search?dist=DateManip
 
 EOT
@@ -35,21 +37,15 @@ print " ok\n" if $found_date_mods;
 
 use ExtUtils::MakeMaker;
 
-# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-# the contents of the Makefile that is written.
 WriteMakefile(
-              DISTNAME     => $DISTNAME,
-              NAME         => $NAME,
-              VERSION_FROM => 'lib/HTML/CalendarMonth.pm',
-              PREREQ_PM    => {
-                               Time::Local        => 0,
-                               HTML::ElementTable => 1.15,
-                               DateTime::Locale   => 0,
-                               Class::Accessor    => 0,
-                               File::Spec         => 0,
-                              },
-              dist         => {
-                               COMPRESS => 'gzip -9f',
-                               SUFFIX => 'gz',
-                              },
-             );
+  DISTNAME     => $DISTNAME,
+  NAME         => $NAME,
+  VERSION_FROM => 'lib/HTML/CalendarMonth.pm',
+  PREREQ_PM    => {
+    HTML::ElementTable => 1.18,
+    DateTime::Locale   => 0.45,
+    Class::Accessor    => 0,
+    File::Spec         => 0,
+    Time::Local        => 0,
+  },
+);

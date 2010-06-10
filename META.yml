@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                HTML-CalendarMonth
-version:             1.19
+version:             1.20
 abstract:            ~
 license:             ~
 author:              ~
@@ -8,9 +8,9 @@ generated_by:        ExtUtils::MakeMaker version 6.42
 distribution_type:   module
 requires:     
     Class::Accessor:               0
-    DateTime::Locale:              0
+    DateTime::Locale:              0.45
     File::Spec:                    0
-    HTML::ElementTable:            1.15
+    HTML::ElementTable:            1.18
     Time::Local:                   0
 meta-spec:
     url:     http://module-build.sourceforge.net/META-spec-v1.3.html

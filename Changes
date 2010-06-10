@@ -1,5 +1,18 @@
 Revision history for Perl extension HTML-CalendarMonth.
 
+1.20  Wed Jun  9 12:22:25 EDT 2010
+        - Updated interface with DateTime::Locale (will eventually
+          require another update when Locale::CLDR is released
+        - Deprecated offsets; too much complexity for little gain
+        - Fixed week-of-year bug in end-of-year edge cases (first
+          week has higher number than the next) RT #53795
+        - Made row globbing optimize on row elements if possible
+        - Updated default HTML style to be more CSS friendly (inspired
+          by RT #37548)
+        - Added option for semantic CSS classes on cells (past, present,
+          future) ala RT #37549
+        - Updated test data
+
 1.19  Sat Mar 15 00:47:26 EDT 2008
         - Fixed longstanding test failure due to HTML::Tree (properly)
           deciding to put quotes around numeric attributes in tags.

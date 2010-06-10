@@ -6,9 +6,10 @@ use lib $FindBin::RealBin;
 
 use testload;
 
-my($test_count, $method);
-BEGIN { $test_count = case_count() ; $method = '' }
+my $test_count;
+BEGIN { $test_count = bulk_count() + odd_count() }
 
 use Test::More tests => $test_count;
 
-check_basic_with_datetool($method);
+check_bulk_with_datetool();
+check_odd_with_datetool();

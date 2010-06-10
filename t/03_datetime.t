@@ -7,7 +7,10 @@ use lib $FindBin::RealBin;
 use testload;
 
 my($test_count, $method);
-BEGIN { $test_count = case_count() + 4 ; $method = 'DateTime' }
+BEGIN {
+  $method = 'DateTime';
+  $test_count = bulk_count() + odd_count() + woy_count() + 2;
+}
 
 use Test::More tests => $test_count;
 
@@ -15,6 +18,7 @@ SKIP: {
   eval "use $method";
   skip("$method not installed", $test_count) if $@;
   check_datetool($method);
-  check_basic_with_datetool($method);
+  check_bulk_with_datetool($method);
+  check_odd_with_datetool($method);
   check_woy_with_datetool($method);
 }

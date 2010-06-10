@@ -6,7 +6,7 @@ use strict;
 use Carp;
 
 use vars qw($VERSION);
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 my $DEBUG = 0;
 
@@ -93,6 +93,34 @@ sub skips {
 sub dow1st  { (shift->dow1st_and_lastday)[0] }
 
 sub lastday { (shift->dow1st_and_lastday)[1] }
+
+sub dom_now {
+  my $self = shift;
+  my $ts = @_ ? shift : time;
+  my($d, $m, $y);
+  if ($ts =~ /^\d+$/) {
+    if (length $ts <= 2) {
+      ($d, $m, $y) = ($ts, $self->month, $self->year);
+      croak "invalid day of month (1 .. " . $self->lastday . ") '$ts'"
+        unless $ts >= 1 && $ts <= $self->lastday;
+    }
+    else {
+      ($d, $m, $y) = (localtime($ts))[3,4,5];
+      ++$m; $y += 1900;
+    }
+  }
+  else {
+    ($y, $m, $d) = $ts =~ m{^(\d+)/(\d\d)/(\d\d)$};
+    croak "invalid yyyy/mm/dd date string '$ts'" unless defined $d;
+  }
+  my($cy, $cm) = ($self->year, $self->month);
+  my $first = sprintf("%04d/%02d/%02d", $cy, $cm, 1);
+  my $last  = sprintf("%04d/%02d/%02d", $cy, $cm, $self->lastday);
+  my $pivot = sprintf("%04d/%02d/%02d", $y, $m, $d);
+  return -1 if $pivot gt $last;
+  return  0 if $pivot lt $first;
+  $d;
+}
 
 sub _summon_date_class {
   my $self = shift;
@@ -308,7 +336,7 @@ Matthew P. Sisk, E<lt>F<sisk@mojotoad.com>E<gt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005 Matthew P. Sisk. All rights reserved. All wrongs
+Copyright (c) 2010 Matthew P. Sisk. All rights reserved. All wrongs
 revenged. This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 

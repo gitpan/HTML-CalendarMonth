@@ -3,84 +3,112 @@ package testload;
 use vars qw( @ISA @EXPORT $Dat_Dir );
 
 use strict;
+use warnings;
 use Test::More;
+
+use Cwd qw( abs_path );
 
 my $DEBUG = 0;
 
 require Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw( $Dat_Dir check_datetool case_count
-              check_basic_with_datetool
-              check_woy_with_datetool
-              dq_nums
-            );
+
+use vars qw(
+  $Dat_Dir
+  $Bulk_File
+  $Odd_File
+  $Woy_File
+  $I8N_File
+  $Narrow_File
+);
+
+@EXPORT = qw(
+  $Dat_Dir
+  $Bulk_File $Odd_File $Woy_File $I8N_File $Narrow_File
+  check_datetool
+  check_bulk_with_datetool
+  check_odd_with_datetool
+  check_woy_with_datetool
+  check_i8n
+  check_narrow
+
+  bulk_count
+  odd_count
+  woy_count
+  i8n_count
+  narrow_count
+
+  clean
+);
 
 use File::Spec;
 
 use HTML::CalendarMonth;
 use HTML::CalendarMonth::DateTool;
 
-my($base_dir, $vol, $dir);
 BEGIN {
-  my $pkg = __PACKAGE__;
-  $pkg =~ s%::%/%g;
-  $pkg .= '.pm';
-  $pkg = File::Spec->canonpath($INC{$pkg});
-  my $file;
-  ($vol, $dir, $file) = File::Spec->splitpath($pkg);
-  $base_dir = File::Spec->catpath($vol, $dir, '');
-}
-$Dat_Dir = $base_dir;
-
-my($tcount, $rds, %dates, @tmethods, @twy_methods, @Cals);
-
-# Required test dates
-my $dat_file = File::Spec->catpath($vol, $dir, 'test.dat');
-open(D, "<$dat_file") or die "Problem reading $dat_file: $!\n";
-$rds = <D>;
-foreach (split(' ', $rds)) {
-  ++$dates{$_};
+  my($vol, $dir, $file) = File::Spec->splitpath(abs_path(__FILE__));
+  $dir = File::Spec->catdir($dir, 'dat');
+  $Dat_Dir = File::Spec->catpath($vol, $dir, '');
 }
 
-my %WOY_data;
-eval join('', <DATA>);
-die "Oops on eval: $@\n" if $@;
+$Bulk_File   = File::Spec->catdir($Dat_Dir,   'bulk.dat');
+$Odd_File    = File::Spec->catdir($Dat_Dir,    'odd.dat');
+$Woy_File    = File::Spec->catdir($Dat_Dir,    'woy.dat');
+$I8N_File    = File::Spec->catdir($Dat_Dir, '   i8n.dat');
+$Narrow_File = File::Spec->catdir($Dat_Dir, 'narrow.dat');
+
+my(@Bulk, @Odd, @Woy, @I8N, @Nar);
+
+sub _load_file {
+  my $f   = shift;
+  my $cal = shift || [];
+  local(*F);
+  return unless open(F, '<', $f);
+  while (my $h = <F>) {
+    chomp $h;
+    my($d, $wb) = split(/\s+/, $h);
+    my($y, $m) = split(/\//, $d);
+    my $c = <F>;
+    chomp $c;
+    push(@$cal, [$d, $y, $m, $wb, clean($c)]);
+  }
+  $cal;
+}
+
+_load_file($Bulk_File, \@Bulk   );
+_load_file($Odd_File,   \@Odd   );
+_load_file($Woy_File,    \@Woy  );
+_load_file($I8N_File,     \@I8N );
+_load_file($Narrow_File,   \@Nar);
+
+sub bulk_count   { scalar @Bulk }
+sub odd_count    { scalar @Odd  }
+sub woy_count    { scalar @Woy  }
+sub i8n_count    { scalar @I8N  }
+sub narrow_count { scalar @Nar  }
 
 # Today's date
 my($month, $year) = (localtime(time))[4,5];
 ++$month;
 $year += 1900;
 
-# Flag tests for a year
-foreach my $y ($year .. $year + 1) {
-  foreach my $m (1 .. 12) {
-    ++$dates{sprintf("%d/%02d", $y, $m)};
-  }
-}
+my $today         = sprintf("%d/%02d", $year, $month);
+my $year_from_now = sprintf("%d/%02d", $year+1, $month);
 
-# Yank test cases
-while (<D>) {
-  chomp;
-  my($d, $wb) = split(' ', $_);
-  my($y, $m) = split('/', $d);
-  my $cal = <D>;
-  push(@Cals, [$y, $m, $cal, $wb]) if $dates{"$y/$m"};
-}
+# keep the next year
+@Bulk = grep { $_ ge $today && $_->[0] le $year_from_now } @Bulk;
 
-close(D);
+###
 
-#############
-
-# guard against HTML::Tree starting to quote numeric attrs as of
-# v3.19_02
-
-sub dq_nums {
-  my $str = shift;
+sub clean {
+  my $str = shift || Carp::confess "string required";
+  $str =~ s/^\s*//; $str =~ s/\s*$//;
+  # guard against HTML::Tree starting to quote numeric attrs as of
+  # v3.19_02
   $str =~ s/\"(\d+)\"/$1/g;
-  return $str;
+  $str;
 }
-
-sub case_count { scalar @Cals }
 
 sub check_datetool {
   my $datetool = shift;
@@ -89,44 +117,93 @@ sub check_datetool {
   require_ok($module);
 }
 
-sub check_basic_with_datetool {
+sub check_bulk_with_datetool {
   my $datetool = shift;
-  my @days = qw( Sun Mon Tue Wed Thr Fri Sat );
   my $method = $datetool || 'auto-select';
-  foreach my $cal (@Cals) {
+  my @days;
+  foreach (@Bulk) {
+    my($d, $y, $m, $wb, $tc) = @$_;
     my $c = HTML::CalendarMonth->new(
-      year       => $cal->[0],
-      month      => $cal->[1],
-      week_begin => $cal->[3],
+      year       => $y,
+      month      => $m,
+      week_begin => $wb,
       datetool   => $datetool,
     );
-    my $day1 = $days[$cal->[3] - 1];
-    cmp_ok(dq_nums($c->as_HTML), 'eq', $cal->[2],
-       sprintf("(%d/%-02d %s 1st day) using %s",
-               $cal->[0], $cal->[1], $day1, $method));
-    if ($DEBUG && $c->as_HTML ne $cal->[2]) {
-      debug_dump('Broken', $c->as_HTML, 'Test Data', $cal->[2]);
-    }
+    @days = $c->dayheaders unless @days;
+    my $day1 = $days[$wb - 1];
+    my $msg = sprintf("(%d/%02d %s 1st day) using %s", $y, $m, $day1, $method);
+    cmp_ok(clean($c->as_HTML), 'eq', $tc, $msg);
+  }
+}
+
+sub check_odd_with_datetool {
+  my $datetool = shift;
+  my $method = $datetool || 'auto-select';
+  my @days;
+  foreach (@Odd) {
+    my($d, $y, $m, $wb, $tc) = @$_;
+    my $c = HTML::CalendarMonth->new(
+      year       => $y,
+      month      => $m,
+      week_begin => $wb,
+      datetool   => $datetool,
+    );
+    @days = $c->dayheaders unless @days;
+    my $day1 = $days[$wb - 1];
+    my $msg = sprintf("(%d/%02d %s 1st day) using %s", $y, $m, $day1, $method);
+    cmp_ok(clean($c->as_HTML), 'eq', $tc, $msg);
   }
 }
 
 sub check_woy_with_datetool {
   my $datetool = shift;
-  my $year = 2000;
-  foreach my $month (qw(01 12)) {
-    my $tc = $WOY_data{"$year/$month"};
-    my $cal = HTML::CalendarMonth->new(
-      year       => $year,
-      month      => $month,
+  foreach (@Woy) {
+    my($d, $y, $m, $wb, $tc) = @$_;
+    my $c = HTML::CalendarMonth->new(
+      year       => $y,
+      month      => $m,
       head_week  => 1,
       datetool   => $datetool,
     );
-    my $ct = dq_nums($cal->as_HTML);
-    chomp $ct;
-    cmp_ok($ct, 'eq', $tc, "($year/$month week of year) using $datetool");
-    if ($DEBUG && $ct ne $tc) {
-      debug_dump('Broken', $ct, 'Test Data', $tc);
-    }
+    my $msg = sprintf("(%d/%02d week of year) using %s", $y, $m, $datetool);
+    cmp_ok(clean($c->as_HTML), 'eq', $tc, $msg);
+  }
+}
+
+sub check_i8n {
+  foreach (@I8N) {
+    my($d, $y, $m, $id, $tc) = @$_;
+    my $c = HTML::CalendarMonth->new(
+      year   => $y,
+      month  => $m,
+      locale => $id,
+    );
+    my $name = $c->loc->loc->name;
+    my $msg = sprintf(
+      "(%d/%02d i8n) %s (wb:%d) using auto-detect",
+      $y, $m, $name, $c->week_begin
+    );
+    cmp_ok(clean($c->as_HTML), 'eq', $tc, $msg);
+  }
+}
+
+sub check_narrow {
+  my @days;
+  foreach (@Nar) {
+    my($d, $y, $m, $wb, $tc) = @$_;
+    my $c = HTML::CalendarMonth->new(
+      year       => $y,
+      month      => $m,
+      week_begin => $wb,
+      full_days  => -1,
+    );
+    @days = $c->dayheaders unless @days;
+    my $day1 = $days[$wb - 1];
+    my $msg = sprintf(
+      "(%d/%02d %s/%s 1st day) narrow/alias using auto-detect",
+      $y, $m, $day1, $c->item_alias($day1)
+    );
+    cmp_ok(clean($c->as_HTML), 'eq', $tc, $msg);
   }
 }
 
@@ -142,6 +219,4 @@ sub debug_dump {
   exit;
 }
 
-__DATA__
-$WOY_data{'2000/01'} = '<table bgcolor="white" border=1 cellpadding=0 cellspacing=0><tr align="center"><td align="left" colspan=6>January</td><td align="center" colspan=2>2000</td></tr><tr align="center"><td align="center">Sun</td><td align="center">Mon</td><td align="center">Tue</td><td align="center">Wed</td><td align="center">Thu</td><td align="center">Fri</td><td align="center">Sat</td><td align="center">&nbsp; </td></tr><tr align="center"><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">1</td><td align="center">52</td></tr><tr align="center"><td align="center">2</td><td align="center">3</td><td align="center">4</td><td align="center">5</td><td align="center">6</td><td align="center">7</td><td align="center">8</td><td align="center">1</td></tr><tr align="center"><td align="center">9</td><td align="center">10</td><td align="center">11</td><td align="center">12</td><td align="center">13</td><td align="center">14</td><td align="center">15</td><td align="center">2</td></tr><tr align="center"><td align="center">16</td><td align="center">17</td><td align="center">18</td><td align="center">19</td><td align="center">20</td><td align="center">21</td><td align="center">22</td><td align="center">3</td></tr><tr align="center"><td align="center">23</td><td align="center">24</td><td align="center">25</td><td align="center">26</td><td align="center">27</td><td align="center">28</td><td align="center">29</td><td align="center">4</td></tr><tr align="center"><td align="center">30</td><td align="center">31</td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">5</td></tr></table>';
-$WOY_data{'2000/12'} = '<table bgcolor="white" border=1 cellpadding=0 cellspacing=0><tr align="center"><td align="left" colspan=6>December</td><td align="center" colspan=2>2000</td></tr><tr align="center"><td align="center">Sun</td><td align="center">Mon</td><td align="center">Tue</td><td align="center">Wed</td><td align="center">Thu</td><td align="center">Fri</td><td align="center">Sat</td><td align="center">&nbsp; </td></tr><tr align="center"><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">1</td><td align="center">2</td><td align="center">48</td></tr><tr align="center"><td align="center">3</td><td align="center">4</td><td align="center">5</td><td align="center">6</td><td align="center">7</td><td align="center">8</td><td align="center">9</td><td align="center">49</td></tr><tr align="center"><td align="center">10</td><td align="center">11</td><td align="center">12</td><td align="center">13</td><td align="center">14</td><td align="center">15</td><td align="center">16</td><td align="center">50</td></tr><tr align="center"><td align="center">17</td><td align="center">18</td><td align="center">19</td><td align="center">20</td><td align="center">21</td><td align="center">22</td><td align="center">23</td><td align="center">51</td></tr><tr align="center"><td align="center">24</td><td align="center">25</td><td align="center">26</td><td align="center">27</td><td align="center">28</td><td align="center">29</td><td align="center">30</td><td align="center">52</td></tr><tr align="center"><td align="center">31</td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">&nbsp; </td><td align="center">1</td></tr></table>';
+1;

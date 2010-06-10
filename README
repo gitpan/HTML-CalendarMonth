@@ -8,12 +8,11 @@ Calendars are represented as HTML::Element based structures, derived
 from the HTML::ElementTable class.
 
 The module includes support for 'week of the year' numbering, arbitrary
-1st day of the week definitions, and aliasing so that you can express
-any element in any language HTML can handle.
+1st day of the week definitions, and locale support.
 
 If you wish to use 'week of the year' numbering, or want to explore
 dates beyond the capability of the internal perl time functions, then
-you will need Date::Calc or Date::Manip.
+you will need Date::Calc, DateTime, or Date::Manip.
 
 INSTALLATION
 
@@ -67,6 +66,6 @@ W. for some helpful bug spotting.
 
 COPYRIGHT
 
-Copyright (c) 1999-2008 Matthew P. Sisk. All rights reserved. All wrongs
+Copyright (c) 1999-2010 Matthew P. Sisk. All rights reserved. All wrongs
 revenged. This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

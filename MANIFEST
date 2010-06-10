@@ -18,6 +18,11 @@ t/04_datemanip.t
 t/05_datecalc.t
 t/06_cal.t
 t/20_i8n.t
-t/test.dat
+t/21_narrow.t
 t/testload.pm
+t/dat/bulk.dat
+t/dat/odd.dat
+t/dat/narrow.dat
+t/dat/woy.dat
+t/dat/i8n.dat
 META.yml                                 Module meta-data (added by MakeMaker)
