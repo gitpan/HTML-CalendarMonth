@@ -330,8 +330,8 @@ minimal match strings as keys and full names as values.
 
 =item first_day_of_week()
 
-Returns a number from 0 to 6 representing the first day of the week,
-where 0 represents Sunday.
+Returns a number from 1 to 7 representing the first day of the week for
+this locale, where 1 represents Sunday.
 
 =head1 AUTHOR
 

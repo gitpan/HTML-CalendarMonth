@@ -9,7 +9,7 @@ use vars qw(@ISA $VERSION);
 
 @ISA = qw(HTML::CalendarMonth::DateTool);
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 use DateTime;
 
@@ -37,7 +37,8 @@ sub dow {
   $month ||= $self->month;
   $year  ||= $self->year;
   my $dt = $self->_new_dt($year, $month, $day);
-  $dt->dow;
+  # convert from 1..7, starting with Mon, to 0..6, starting with Sun
+  $dt->dow % 7;
 }
 
 sub add_days {

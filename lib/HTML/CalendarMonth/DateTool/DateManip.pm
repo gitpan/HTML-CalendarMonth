@@ -9,7 +9,7 @@ use vars qw(@ISA $VERSION);
 
 @ISA = qw(HTML::CalendarMonth::DateTool);
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 use Date::Manip qw(Date_DaysInMonth Date_DayOfWeek DateCalc
                    UnixDate Date_SecsSince1970);
@@ -18,10 +18,7 @@ sub dow1st_and_lastday {
   my($self, $month, $year) = @_;
   $month ||= $self->month;
   $year  ||= $self->year;
-  my $lastday = Date_DaysInMonth($month, $year);
-  # Date::Manip uses 1 for Monday, 7 for Sunday as well.
-  my $dow1st = $self->dow(1);
-  ($dow1st, $lastday);
+  ($self->dow(1), Date_DaysInMonth($month, $year));
 }
 
 sub day_epoch {
@@ -34,15 +31,12 @@ sub day_epoch {
 
 sub dow {
   # Date::Manip uses 1..7 as indicies in the week, starting with Monday.
-  # Internally, we use 0..6, starting with Sunday. These turn out to be
-  # identical except for Sunday.
+  # Convert to 0..6 starting with Sunday.
   my($self, $day, $month, $year) = @_;
-  $day || croak "Day required.\n";
+  $day   || croak "Day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
-  my $dow = Date_DayOfWeek($month, $day, $year);
-  $dow = 0 if $dow == 7;
-  $dow;
+  Date_DayOfWeek($month, $day, $year) % 7;
 }
 
 sub add_days {

@@ -3,7 +3,7 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION @ISA);
 
-$VERSION = '1.20';
+$VERSION = '1.21';
 
 use Carp;
 
@@ -329,10 +329,10 @@ sub _anchor_month {
 
   my $tool = $self->_datetool;
 
-  my $dow1st  = $tool->dow1st;
+  my $dow1st  = $tool->dow1st; # 0..6, starting with Sun
   my $lastday = $tool->lastday;
 
-  # If the first day of the week is not Sunday...
+  # week_begin given as 1..7 starting with Sun
   $dow1st = ($dow1st - ($self->week_begin - 1)) % 7;
 
   $self->dow1st($dow1st);

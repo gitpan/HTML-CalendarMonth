@@ -1,5 +1,9 @@
 Revision history for Perl extension HTML-CalendarMonth.
 
+1.21  Fri Jun 11 15:37:32 EDT 2010
+        - Fixed a one-off error in dow for the Date::Manip harness
+        - Added linux 'ncal' harness
+
 1.20  Wed Jun  9 12:22:25 EDT 2010
         - Updated interface with DateTime::Locale (will eventually
           require another update when Locale::CLDR is released

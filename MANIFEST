@@ -7,6 +7,7 @@ lib/HTML/CalendarMonth/Locale.pm
 lib/HTML/CalendarMonth/DateTool.pm
 lib/HTML/CalendarMonth/DateTool/TimeLocal.pm
 lib/HTML/CalendarMonth/DateTool/Cal.pm
+lib/HTML/CalendarMonth/DateTool/Ncal.pm
 lib/HTML/CalendarMonth/DateTool/DateCalc.pm
 lib/HTML/CalendarMonth/DateTool/DateManip.pm
 lib/HTML/CalendarMonth/DateTool/DateTime.pm
@@ -17,6 +18,7 @@ t/03_datetime.t
 t/04_datemanip.t
 t/05_datecalc.t
 t/06_cal.t
+t/07_ncal.t
 t/20_i8n.t
 t/21_narrow.t
 t/testload.pm

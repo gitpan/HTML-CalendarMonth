@@ -6,7 +6,7 @@ use strict;
 use Carp;
 
 use vars qw($VERSION);
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 my $DEBUG = 0;
 
@@ -15,6 +15,7 @@ my %Toolmap = (
   'Date::Calc'  => 'DateCalc',
   'DateTime'    => 'DateTime',
   'Date::Manip' => 'DateManip',
+  'ncal'        => 'Ncal',
   'cal'         => 'Cal',
 );
 
@@ -62,19 +63,28 @@ sub weeknum  { shift->{weeknum}  }
 sub historic { shift->{historic} }
 sub datetool { shift->{datetool} }
 
+sub _find_cmd {
+  my($self, $cmd) = @_;
+  my $bin;
+  foreach (qw(/usr/bin /bin /usr/local/bin)) {
+    return "$_/$cmd" if -x "$_/$cmd";
+  }
+}
+
 sub cal_cmd {
   my $self = shift;
-  unless (exists $self->{cal_cmd}) {
-    my $cal;
-    foreach (qw(/usr/bin /bin /usr/local/bin)) {
-      if (-x "$_/cal") {
-        $cal = "$_/cal";
-        last;
-      }
-    }
-    $self->{cal_cmd} = $cal || undef;
+  if (! exists $self->{cal_cmd}) {
+    $self->{cal_cmd} = $self->_find_cmd('cal');
   }
   $self->{cal_cmd};
+}
+
+sub ncal_cmd {
+  my $self = shift;
+  if (! exists $self->{ncal_cmd}) {
+    $self->{ncal_cmd} = $self->_find_cmd('ncal');
+  }
+  $self->{ncal_cmd};
 }
 
 sub day_epoch {
@@ -129,6 +139,9 @@ sub _summon_date_class {
   if ( $self->_test_for_timelocal ) {
     $dc = __PACKAGE__ . '::TimeLocal';
   }
+  elsif ( $self->_test_for_ncal ) {
+    $dc = __PACKAGE__ . '::Ncal';
+  }
   elsif ( $self->_test_for_cal ) {
     $dc = __PACKAGE__ . '::Cal';
   }
@@ -154,6 +167,7 @@ __NOTOOL
 sub _dump_tests {
   my $self = shift;
   print "Time::Local : ", $self->_test_for_timelocal, "\n";
+  print "       ncal : ", $self->_test_for_ncal, "\n";
   print "        cal : ", $self->_test_for_cal, "\n";
   print " Date::Calc : ", $self->_test_for_datecalc, "\n";
   print "   DateTime : ", $self->_test_for_datetime, "\n";
@@ -168,9 +182,16 @@ sub _test_for_timelocal {
     (!defined $year || (($year >= 1970) && ($year < 2038)));
 }
 
+sub _test_for_ncal {
+  my $self = shift;
+  my $historic = $self->historic;
+  my $cal = $self->ncal_cmd;
+  $historic && $cal;
+}
+
 sub _test_for_cal {
   my $self = shift;
-  my $weeknum = $self->weeknum;
+  my $weeknum  = $self->weeknum;
   my $historic = $self->historic;
   my $cal = $self->cal_cmd;
   !$weeknum && $historic && $cal;
@@ -273,7 +294,7 @@ Accessors for the parameters provided to C<new()> above.
 
 Returns the day of week number for the 1st of the C<year> and C<month>
 specified during the call to C<new()>. Relies on the presence of
-C<dow1st_and_lastday()>.
+C<dow1st_and_lastday()>. Should be 0..6 starting with Sun.
 
 =item lastday()
 
@@ -292,8 +313,9 @@ C<dow1st_and_lastday()> methods.
 
 =item dow1st_and_lastday()
 
-Required. Provides a list containing the day of the week of the first day of the
-month along with the last day of the month.
+Required. Provides a list containing the day of the week of the first
+day of the month (0..6 starting with Sun) along with the last day of
+the month.
 
 =item day_epoch()
 
@@ -313,7 +335,7 @@ methods are necessary:
 
 For a given day, and optionally C<month> and C<year> if they are
 different from those specified in C<new()>, provide the day of week
-number. (1=Sunday, 6=Saturday).
+number. (1=Sunday, 7=Saturday).
 
 =item add_days($days, $delta, $day, [$month], [$year])
 

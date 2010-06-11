@@ -9,9 +9,7 @@ use vars qw(@ISA $VERSION);
 
 @ISA = qw(HTML::CalendarMonth::DateTool);
 
-$VERSION = '0.01';
-
-use Time::Local;
+$VERSION = '0.02';
 
 sub dow1st_and_lastday {
   my($self, $month, $year) = @_;
