@@ -15,6 +15,9 @@ sub dow1st_and_lastday {
   my($self, $month, $year) = @_;
   $month ||= $self->month;
   $year  ||= $self->year;
+  if (my $r = $self->{_res}{$year}{$month}) {
+    return(@$r);
+  }
   my $cmd = $self->ncal_cmd or croak "ncal command not found\n";
   my @cal = grep(!/^\s*$/,`$cmd -w $month $year`);
   shift @cal if $cal[0] =~ /\D+/;
@@ -33,7 +36,7 @@ sub dow1st_and_lastday {
     $dow_row =~ s/^\s+//;
     my @days = split(/\s+/, $dow_row);
     $dow1st = ($di + 1) % 7 if !$dow1st && $days[0];
-    for my $i (0 .. $#woy) {
+    for my $i (0 .. $#days) {
       my $d = $days[$i] || next;
       $last_day = $d if $d > $last_day;
       $woy{$d}  = $woy[$i];
@@ -48,10 +51,11 @@ sub dow1st_and_lastday {
     $self->skips(\%skips);
   }
   delete $self->{_woy};
-  delete $self->{_lastday};
-  $self->{_woy}{$year}{$month}     = \%woy if %woy;
-  $self->{_dow}{$year}{$month}     = \%dow if %dow;
-  $self->{_lastday}{$year}{$month} = $last_day;
+  delete $self->{_dow};
+  delete $self->{_res};
+  $self->{_woy}{$year}{$month} = \%woy if %woy;
+  $self->{_dow}{$year}{$month} = \%dow if %dow;
+  $self->{_res}{$year}{$month} = [$dow1st, $last_day];
   ($dow1st, $last_day);
 }
 
@@ -96,8 +100,13 @@ sub add_days {
     }
   }
   else {
-    my $last_day = $self->{_lastday}{$year}{$month} ||
-                   ($self->dow1st_and_lastday($month, $year))[1];
+    my $last_day;
+    if (my $res = $self->{_res}{$year}{$month}) {
+      $last_day = $res->[1];
+    }
+    else {
+      $last_day = ($self->dow1st_and_lastday($month, $year))[1];
+    }
     if ($delta + $day <= $last_day) {
       return($day + $delta, $month, $year);
     }

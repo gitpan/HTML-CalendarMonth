@@ -6,7 +6,7 @@ use strict;
 use Carp;
 
 use vars qw($VERSION);
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 my $DEBUG = 0;
 
@@ -18,6 +18,11 @@ my %Toolmap = (
   'ncal'        => 'Ncal',
   'cal'         => 'Cal',
 );
+
+my %Classmap;
+$Classmap{lc $Toolmap{$_}} = $_ foreach keys %Toolmap;
+
+my($Cal_Cmd, $Ncal_Cmd);
 
 sub toolmap {
   shift;
@@ -40,10 +45,16 @@ sub new {
   my $self = {};
   bless $self, $class;
   my %parms = @_;
-  $self->{year}     = $parms{year}  or croak "missing year (YYYY)\n";
-  $self->{month}    = $parms{month} or croak "missing month num (1-12)\n";
+  $self->{year}     = $parms{year};
+  $self->{month}    = $parms{month};
   $self->{weeknum}  = $parms{weeknum};
   $self->{historic} = $parms{historic};
+  if (! $self->{year}) {
+    my @dmy = $self->dmy_now;
+    $self->{year}    = $dmy[2];
+    $self->{month} ||= $dmy[1];
+  }
+  $self->{month} ||= 1;
   if ($parms{datetool}) {
     $self->{datetool} = $self->toolmap($parms{datetool})
       or croak "Sorry, didn't find a tool for datetool '$parms{datetool}'\n";
@@ -63,6 +74,12 @@ sub weeknum  { shift->{weeknum}  }
 sub historic { shift->{historic} }
 sub datetool { shift->{datetool} }
 
+sub name {
+  my $class = shift;
+  $class = ref $class || $class;
+  lc((split(/::/, $class))[-1]);
+}
+
 sub _find_cmd {
   my($self, $cmd) = @_;
   my $bin;
@@ -73,18 +90,18 @@ sub _find_cmd {
 
 sub cal_cmd {
   my $self = shift;
-  if (! exists $self->{cal_cmd}) {
-    $self->{cal_cmd} = $self->_find_cmd('cal');
+  if (! defined $Cal_Cmd) {
+    $Cal_Cmd = $self->_find_cmd('cal');
   }
-  $self->{cal_cmd};
+  $Cal_Cmd;
 }
 
 sub ncal_cmd {
   my $self = shift;
-  if (! exists $self->{ncal_cmd}) {
-    $self->{ncal_cmd} = $self->_find_cmd('ncal');
+  if (! defined $Ncal_Cmd) {
+    $Ncal_Cmd = $self->_find_cmd('ncal');
   }
-  $self->{ncal_cmd};
+  $Ncal_Cmd;
 }
 
 sub day_epoch {
@@ -104,6 +121,14 @@ sub dow1st  { (shift->dow1st_and_lastday)[0] }
 
 sub lastday { (shift->dow1st_and_lastday)[1] }
 
+sub dmy_now {
+  my $self = shift;
+  my $ts = @_ ? shift : time;
+  my($d, $m, $y) = (localtime($ts))[3,4,5];
+  ++$m; $y += 1900;
+  ($d, $m, $y);
+}
+
 sub dom_now {
   my $self = shift;
   my $ts = @_ ? shift : time;
@@ -115,8 +140,7 @@ sub dom_now {
         unless $ts >= 1 && $ts <= $self->lastday;
     }
     else {
-      ($d, $m, $y) = (localtime($ts))[3,4,5];
-      ++$m; $y += 1900;
+      ($d, $m, $y) = $self->dmy_now($ts);
     }
   }
   else {
@@ -134,74 +158,108 @@ sub dom_now {
 
 sub _summon_date_class {
   my $self = shift;
-  return $self->datetool if $self->datetool;
-  my $dc;
-  if ( $self->_test_for_timelocal ) {
-    $dc = __PACKAGE__ . '::TimeLocal';
-  }
-  elsif ( $self->_test_for_ncal ) {
-    $dc = __PACKAGE__ . '::Ncal';
-  }
-  elsif ( $self->_test_for_cal ) {
-    $dc = __PACKAGE__ . '::Cal';
-  }
-  elsif ( $self->_test_for_datecalc ) {
-    $dc = __PACKAGE__ . '::DateCalc';
-  }
-  elsif ( $self->_test_for_datetime ) {
-    $dc = __PACKAGE__ . '::DateTime';
-  }
-  elsif( $self->_test_for_datemanip ) {
-    $dc = __PACKAGE__ . '::DateManip';
+  my @tools;
+  if (my $c = $self->datetool) {
+    @tools = $c->name;
   }
   else {
-    croak <<__NOTOOL;
-No valid date mechanism found. Install Date::Calc, DateTime, or
-Date::Manip, or try using a date between 1970 and 2038 so that
-Time::Local can be used.
-__NOTOOL
+    @tools = qw( timelocal datecalc datetime datemanip ncal cal );
   }
-  $dc;
+  my($dc, @fails);
+  for my $tool (@tools) {
+    my $method = join('_', '', lc($tool), 'fails');
+    if (my $f = $self->$method) {
+      push(@fails, [$tool, $f]);
+    }
+    else {
+      $dc = $self->toolmap($tool);
+      last;
+    }
+  }
+  return $dc if $dc;
+  if (@tools == 1) {
+    croak "invalid date tool " . join(': ', @{$fails[0]}) if @tools == 1;
+  }
+  else {
+    croak join("\n",
+      "no valid date mechanism found:",
+      map(sprintf("%11s: %s", @$_), @fails),
+      "\n"
+    );
+  }
 }
 
 sub _dump_tests {
   my $self = shift;
-  print "Time::Local : ", $self->_test_for_timelocal, "\n";
-  print "       ncal : ", $self->_test_for_ncal, "\n";
-  print "        cal : ", $self->_test_for_cal, "\n";
-  print " Date::Calc : ", $self->_test_for_datecalc, "\n";
-  print "   DateTime : ", $self->_test_for_datetime, "\n";
-  print "Date::Manip : ", $self->_test_for_datemanip, "\n";
+  print "Time::Local : ", $self->_timelocal_fails || 1, "\n";
+  print " Date::Calc : ", $self->_datecalc_fails  || 1, "\n";
+  print "   DateTime : ", $self->_datetime_fails  || 1, "\n";
+  print "Date::Manip : ", $self->_datemanip_fails || 1, "\n";
+  print "       ncal : ", $self->_ncal_fails      || 1, "\n";
+  print "        cal : ", $self->_cal_fails       || 1, "\n";
 }
 
-sub _test_for_timelocal {
+sub _is_julian {
   my $self = shift;
-  my $year = $self->year;
-  my $weeknum = $self->weeknum;
-  !$weeknum && eval "require Time::Local" &&
-    (!defined $year || (($year >= 1970) && ($year < 2038)));
+  my $y = $self->year;
+  $y < 1752 || ($y == 1752 && $self->month <= 9);
 }
 
-sub _test_for_ncal {
+sub _timelocal_fails {
   my $self = shift;
-  my $historic = $self->historic;
-  my $cal = $self->ncal_cmd;
-  $historic && $cal;
+  return "not installed" unless $self->_timelocal_present;
+  return "week-of-year numbering unsupported" if $self->weeknum;
+  my $y = $self->year;
+  return "only years between 1970 and 2038 supported"
+    if $y < 1970 || $y >= 2038;
+  return;
 }
 
-sub _test_for_cal {
+sub _ncal_fails {
   my $self = shift;
-  my $weeknum  = $self->weeknum;
-  my $historic = $self->historic;
-  my $cal = $self->cal_cmd;
-  !$weeknum && $historic && $cal;
+  return "command not found" unless $self->_ncal_present;
+  return "week-of-year numbering not supported prior to 1752/09"
+    if $self->weeknum && $self->_is_julian;
+  return;
 }
 
-sub _test_for_datecalc  { eval "require Date::Calc";  return !$@ }
+sub _cal_fails  {
+  my $self = shift;
+  return "command not found" unless $self->_cal_present;
+  return "week-of-year numbering not supported" if $self->weeknum;
+  return;
+}
 
-sub _test_for_datetime  { eval "require DateTime";    return !$@ }
+sub _datecalc_fails {
+  my $self = shift;
+  return "not installed" unless $self->_datecalc_present;
+  return "historic mode prior to 1752/09 not supported"
+    if $self->historic && $self->_is_julian;
+  return;
+}
 
-sub _test_for_datemanip { eval "require Date::Manip"; return !$@ }
+sub _datetime_fails {
+  my $self = shift;
+  return "not installed" unless $self->_datetime_present;
+  return "historic mode prior to 1752/09 not supported"
+    if $self->historic && $self->_is_julian;
+  return;
+}
+
+sub _datemanip_fails {
+  my $self = shift;
+  return "not installed" unless $self->_datemanip_present;
+  return "historic mode prior to 1752/09 not supported"
+    if $self->historic && $self->_is_julian;
+  return;
+}
+
+sub _timelocal_present { eval "require Time::Local"; return !$@ }
+sub _datecalc_present  { eval "require Date::Calc";  return !$@ }
+sub _datetime_present  { eval "require DateTime";    return !$@ }
+sub _datemanip_present { eval "require Date::Manip"; return !$@ }
+sub _ncal_present      { shift->ncal_cmd }
+sub _cal_present       { shift->cal_cmd  };
 
 1;
 
@@ -228,8 +286,9 @@ available on the current system. For most contemporary dates this
 usually ends up being the internal Time::Local package of perl. For more
 exotic dates, or when week number of the years are desired, other
 methods are attempted including DateTime, Date::Calc, Date::Manip, and
-the unix 'cal' command. Each of these has a specific subclass of this
-module offering the same utility methods needed by HTML::CalendarMonth.
+the linux/unix 'ncal' or 'cal' commands. Each of these has a specific
+subclass of this module offering the same utility methods needed by
+HTML::CalendarMonth.
 
 =head1 METHODS
 
@@ -258,17 +317,18 @@ currently set up for week of year calculations.
 
 =item historic
 
-Optional. If the 'cal' command is available, use it rather than other available
-date modules since the 'cal' command accurately handles some specific
-historical artifacts such as the transition from Julian to Gregorian.
+Optional. If the the ncal or cal commands are available, use one of them
+rather than other available date modules since these utilities
+accurately handle some specific historical artifacts such as the
+transition from Julian to Gregorian.
 
 =item datetool
 
 Optional. Mostly for debugging, this option can be used to indicate a
 specific HTML::CalendarMonth::DateTool subclass for instantiation. The
 value can be either the actual utility class, e.g., Date::Calc, or the
-name of the CalendarMonth handler leaf class, e.g. DateCalc. For the
-'cal' command, use 'cal'.
+name of the CalendarMonth handler leaf class, e.g. DateCalc. Use 'ncal'
+or 'cal', respectively, for the wrappers around those commands.
 
 =back
 

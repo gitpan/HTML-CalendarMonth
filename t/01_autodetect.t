@@ -6,10 +6,21 @@ use lib $FindBin::RealBin;
 
 use testload;
 
-my $test_count;
-BEGIN { $test_count = bulk_count() + odd_count() }
+use HTML::CalendarMonth::DateTool;
+
+my($test_count, $detected);
+BEGIN {
+  $test_count = bulk_count() + odd_count() + 1;
+  eval { $detected = HTML::CalendarMonth::DateTool->new };
+}
 
 use Test::More tests => $test_count;
 
-check_bulk_with_datetool();
-check_odd_with_datetool();
+ok($detected, 'auto-detected a datetool');
+
+SKIP: {
+  skip("no datetools installed", $test_count) unless $detected;
+  check_bulk_with_datetool();
+  check_odd_with_datetool();
+}
+

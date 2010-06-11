@@ -1,5 +1,10 @@
 Revision history for Perl extension HTML-CalendarMonth.
 
+1.22  Fri Jun 11 19:21:49 EDT 2010
+        - improved date tool auto detect
+        - doc updates
+        - test updates
+
 1.21  Fri Jun 11 15:37:32 EDT 2010
         - Fixed a one-off error in dow for the Date::Manip harness
         - Added linux 'ncal' harness

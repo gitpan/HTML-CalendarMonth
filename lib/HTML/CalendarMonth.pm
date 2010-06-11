@@ -3,7 +3,7 @@ package HTML::CalendarMonth;
 use strict;
 use vars qw($VERSION @ISA);
 
-$VERSION = '1.21';
+$VERSION = '1.22';
 
 use Carp;
 
@@ -448,8 +448,8 @@ sub _col_items {
 sub daytime {
   # return seconds since epoch for a given day
   my($self, $day) = splice(@_, 0, 2);
-  $day or croak "Must specify day of month";
-  croak "Day does not exist" unless $self->_daycheck($day);
+  $day or croak "must specify day of month";
+  croak "day does not exist" unless $self->_daycheck($day);
   $self->_caltool->day_epoch($day);
 }
 
@@ -624,6 +624,7 @@ sub allheaders {
 sub coords_of {
   # convert an item into grid coordinates
   my $self = shift;
+  croak "undefined value passed to coords_of()" if @_ && ! defined $_[0];
   my $ref = $self->itoc(@_);
   my @pos = ref $ref ? $ref->position : ();
   @pos ? (@pos[$#pos - 1, $#pos]) : ();
@@ -753,7 +754,7 @@ sub daynum {
 sub _dayheadcheck {
   # test day head names
   my($self, $name) = splice(@_, 0, 2);
-  $name or croak "Name missing";
+  $name or croak "name missing";
   return undef if $name =~ /^\d+$/;
   $self->daynum($name);
 }
@@ -761,7 +762,7 @@ sub _dayheadcheck {
 sub _daycheck {
   # check if an item is a day of the month (1..31)
   my($self, $item) = splice(@_, 0, 2);
-  $item = shift or croak "item required";
+  croak "item required" unless $item;
   # can't just invert _headcheck because coords_of() needs _daycheck,
   # and _headcheck uses coords_of()
   $item =~ /^\d{1,2}$/ && $item <= 31;
@@ -891,7 +892,7 @@ my %Calmonth_Attrs = (
   today       => undef, # DOM, if not now
   week_begin  => 1,     # what DOW (1-7) is the 1st DOW?
 
-  historic    => 1,     # if able to choose, use 'cal'
+  historic    => 1,     # if able to choose, use ncal/cal
                         # rather than Date::Calc, which
                         # blindly extrapolates Gregorian
 
@@ -948,7 +949,7 @@ sub set {
     $Objects{$self}{$key} = [@_];
   }
   else {
-    Carp::confess("Wrong number of arguments received");
+    Carp::confess("wrong number of arguments received");
   }
 }
 
@@ -961,7 +962,7 @@ sub get {
     return @{$Objects{$self}{@_}};
   }
   else {
-    Carp::confess("Wrong number of arguments received.");
+    Carp::confess("wrong number of arguments received.");
   }
 }
 
@@ -1050,10 +1051,10 @@ The module includes support for week-of-the-year numbering, arbitrary
 any element in any language HTML can handle.
 
 Dates that are beyond the range of the built-in time functions of perl
-are handled either by the 'cal' command, Date::Calc, or Date::Manip. The
-presence of any one of these utilities and modules will suffice for
+are handled either by the ncal/cal command, Date::Calc, or Date::Manip.
+The presence of any one of these utilities and modules will suffice for
 these far flung date calculations. If you want to use week-of-year
-numbering, then either one of the date modules is required.
+numbering, then ncal or either one of the date modules is required.
 
 Full locale support is offered via DateTime::Locale. For a full list of
 supported locale id's, look at HTML::CalendarMonth::Locale->locales() or
@@ -1164,12 +1165,13 @@ these classes are:
 
 This option is ignored for dates that do not exceed the range of the built-
 in perl time functions. For dates that B<do> exceed these ranges, this
-option specifies the default calculation method. When set, if the 'cal'
-utility is available on your system, that will be used rather than the
-Date::Calc or Date::Manip modules. This can be an issue since the date
-modules blindly extrapolate the Gregorian calendar, whereas 'cal' takes
-some of these quirks into account. If 'cal' is not available on your
-system, this attribute is meaningless. Defaults to 1.
+option specifies the default calculation method. When set, if the 'ncal'
+or 'cal' command is available on your system, that will be used rather
+than the Date::Calc or Date::Manip modules. This can be an issue since
+the date modules blindly extrapolate the Gregorian calendar, whereas
+ncal/cal will revert to the Julian calendar during September 1752. If
+either ncal or cal are not available on your system, this attribute is
+meaningless. Defaults to 1.
 
 =back
 

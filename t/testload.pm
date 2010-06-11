@@ -119,7 +119,6 @@ sub check_datetool {
 
 sub check_bulk_with_datetool {
   my $datetool = shift;
-  my $method = $datetool || 'auto-select';
   my @days;
   foreach (@Bulk) {
     my($d, $y, $m, $wb, $tc) = @$_;
@@ -131,6 +130,7 @@ sub check_bulk_with_datetool {
     );
     @days = $c->dayheaders unless @days;
     my $day1 = $days[$wb - 1];
+    my $method = "auto-select (" . $c->_caltool->name . ")";
     my $msg = sprintf("(%d/%02d %s 1st day) using %s", $y, $m, $day1, $method);
     cmp_ok(clean($c->as_HTML), 'eq', $tc, $msg);
   }
@@ -138,20 +138,30 @@ sub check_bulk_with_datetool {
 
 sub check_odd_with_datetool {
   my $datetool = shift;
-  my $method = $datetool || 'auto-select';
   my @days;
   foreach (@Odd) {
     my($d, $y, $m, $wb, $tc) = @$_;
-    my $c = HTML::CalendarMonth->new(
-      year       => $y,
-      month      => $m,
-      week_begin => $wb,
-      datetool   => $datetool,
-    );
-    @days = $c->dayheaders unless @days;
-    my $day1 = $days[$wb - 1];
-    my $msg = sprintf("(%d/%02d %s 1st day) using %s", $y, $m, $day1, $method);
-    cmp_ok(clean($c->as_HTML), 'eq', $tc, $msg);
+    SKIP: {
+      my $c;
+      eval {
+        $c = HTML::CalendarMonth->new(
+          year       => $y,
+          month      => $m,
+          week_begin => $wb,
+          datetool   => $datetool,
+        );
+      };
+      skip("$datetool skip julian $y/$m", 1)
+        if $@ && $@ =~ /invalid date tool/i;
+      @days = $c->dayheaders unless @days;
+      my $day1 = $days[$wb - 1];
+      my $method ||= "auto-select (" . $c->_caltool->name . ")";
+      my $msg = sprintf(
+        "(%d/%02d %s 1st day) using %s",
+        $y, $m, $day1, $method
+      );
+      cmp_ok(clean($c->as_HTML), 'eq', $tc, $msg);
+    }
   }
 }
 
