@@ -1,15 +1,6 @@
 Revision history for Perl extension HTML-CalendarMonth.
 
-1.22  Fri Jun 11 19:21:49 EDT 2010
-        - improved date tool auto detect
-        - doc updates
-        - test updates
-
-1.21  Fri Jun 11 15:37:32 EDT 2010
-        - Fixed a one-off error in dow for the Date::Manip harness
-        - Added linux 'ncal' harness
-
-1.20  Wed Jun  9 12:22:25 EDT 2010
+1.23  Sat Jun 12 21:12:45 EDT 2010
         - Updated interface with DateTime::Locale (will eventually
           require another update when Locale::CLDR is released
         - Deprecated offsets; too much complexity for little gain
@@ -21,6 +12,11 @@ Revision history for Perl extension HTML-CalendarMonth.
         - Added option for semantic CSS classes on cells (past, present,
           future) ala RT #37549
         - Updated test data
+        - Improved date tool auto detect
+        - Fixed Date::Manip parse error for negative day deltas
+        - Doc updates
+        - Test updates
+        - Added linux 'ncal' harness
 
 1.19  Sat Mar 15 00:47:26 EDT 2008
         - Fixed longstanding test failure due to HTML::Tree (properly)

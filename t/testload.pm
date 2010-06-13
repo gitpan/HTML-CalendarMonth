@@ -130,8 +130,12 @@ sub check_bulk_with_datetool {
     );
     @days = $c->dayheaders unless @days;
     my $day1 = $days[$wb - 1];
-    my $method = "auto-select (" . $c->_caltool->name . ")";
-    my $msg = sprintf("(%d/%02d %s 1st day) using %s", $y, $m, $day1, $method);
+    my $method = $c->_caltool->name;
+    $method = "auto-select ($method)" unless $datetool;
+    my $msg = sprintf(
+      "(%d/%02d %s 1st day) using %s",
+      $y, $m, $day1, $method
+    );
     cmp_ok(clean($c->as_HTML), 'eq', $tc, $msg);
   }
 }
@@ -155,7 +159,8 @@ sub check_odd_with_datetool {
         if $@ && $@ =~ /invalid date tool/i;
       @days = $c->dayheaders unless @days;
       my $day1 = $days[$wb - 1];
-      my $method ||= "auto-select (" . $c->_caltool->name . ")";
+      my $method = $c->_caltool->name;
+      $method = "auto-select ($method)" unless $datetool;
       my $msg = sprintf(
         "(%d/%02d %s 1st day) using %s",
         $y, $m, $day1, $method

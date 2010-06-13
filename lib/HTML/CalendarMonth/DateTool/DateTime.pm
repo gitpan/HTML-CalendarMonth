@@ -9,7 +9,7 @@ use vars qw(@ISA $VERSION);
 
 @ISA = qw(HTML::CalendarMonth::DateTool);
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 use DateTime;
 
@@ -24,7 +24,7 @@ sub dow1st_and_lastday {
 
 sub day_epoch {
   my($self, $day, $month, $year) = @_;
-  $day || croak "Day required.\n";
+  $day || croak "day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
   my $dt = $self->_new_dt($year, $month, $day);
@@ -33,7 +33,7 @@ sub day_epoch {
 
 sub dow {
   my($self, $day, $month, $year) = @_;
-  $day || croak "Day required.\n";
+  $day || croak "day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
   my $dt = $self->_new_dt($year, $month, $day);
@@ -43,8 +43,8 @@ sub dow {
 
 sub add_days {
   my($self, $delta, $day, $month, $year) = @_;
-  defined $delta || croak "Delta (in days) required.\n";
-  $day   || croak "Day required.\n";
+  defined $delta || croak "delta (in days) required.\n";
+  $day   || croak "day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
   my $dt = $self->_new_dt($year, $month, $day);
@@ -54,7 +54,7 @@ sub add_days {
 
 sub week_of_year {
   my($self, $day, $month, $year) = @_;
-  $day || croak "Day required.\n";
+  $day || croak "day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
   my $dt = $self->_new_dt($year, $month, $day);
@@ -78,7 +78,7 @@ sub _new_dt {
 sub _last_dom_dt {
   my $self = shift;
   my($year, $month) = @_;
-  $year && $month or croak "Year and month required.\n";
+  $year && $month or croak "year and month required.\n";
   DateTime->last_day_of_month(year => $year, month => $month);
 }
 

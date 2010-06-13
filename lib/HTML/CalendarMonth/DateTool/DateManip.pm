@@ -9,10 +9,16 @@ use vars qw(@ISA $VERSION);
 
 @ISA = qw(HTML::CalendarMonth::DateTool);
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 
-use Date::Manip qw(Date_DaysInMonth Date_DayOfWeek DateCalc
-                   UnixDate Date_SecsSince1970);
+use Date::Manip qw(
+  Date_DaysInMonth
+  Date_DayOfWeek
+  DateCalc
+  UnixDate
+  Date_SecsSince1970
+  ParseDateDelta
+);
 
 sub dow1st_and_lastday {
   my($self, $month, $year) = @_;
@@ -23,7 +29,7 @@ sub dow1st_and_lastday {
 
 sub day_epoch {
   my($self, $day, $month, $year) = @_;
-  $day || croak "Day required.\n";
+  $day || croak "day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
   Date_SecsSince1970($month, $day, $year, 0, 0, 0);
@@ -33,7 +39,7 @@ sub dow {
   # Date::Manip uses 1..7 as indicies in the week, starting with Monday.
   # Convert to 0..6 starting with Sunday.
   my($self, $day, $month, $year) = @_;
-  $day   || croak "Day required.\n";
+  $day   || croak "day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
   Date_DayOfWeek($month, $day, $year) % 7;
@@ -41,12 +47,14 @@ sub dow {
 
 sub add_days {
   my($self, $delta, $day, $month, $year) = @_;
-  defined $delta || croak "Delta (in days) required.\n";
-  $day   || croak "Day required.\n";
+  defined $delta || croak "delta (in days) required.\n";
+  $day   || croak "day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
-  my $date = DateCalc(sprintf("%04d%02d%02d", $year, $month, $day),
-                      "+ $delta days");
+  my $date = DateCalc(
+    sprintf("%04d%02d%02d", $year, $month, $day),
+    "$delta days"
+  );
   my($y, $m, $d) = $date =~ /^(\d{4})(\d\d)(\d\d)/;
   $_ += 0 foreach ($y, $m, $d);
   ($d, $m, $y);
@@ -54,7 +62,7 @@ sub add_days {
 
 sub week_of_year {
   my($self, $day, $month, $year) = @_;
-  $day || croak "Day required.\n";
+  $day   || croak "day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
   my $week = UnixDate(sprintf("%04d%02d%02d", $year, $month, $day), '%U');

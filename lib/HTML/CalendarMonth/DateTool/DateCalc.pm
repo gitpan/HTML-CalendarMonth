@@ -9,7 +9,7 @@ use vars qw(@ISA $VERSION);
 
 @ISA = qw(HTML::CalendarMonth::DateTool);
 
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 use Date::Calc qw(Days_in_Month Day_of_Week Add_Delta_Days
                   Weeks_in_Year Week_of_Year Week_Number Mktime
@@ -31,7 +31,7 @@ sub day_epoch {
 
 sub dow {
   my($self, $day, $month, $year) = @_;
-  $day || croak "Day required.\n";
+  $day || croak "day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
   # Date::Calc uses 1..7 as indicies in the week, starting with Monday.
@@ -41,8 +41,8 @@ sub dow {
 
 sub add_days {
   my($self, $delta, $day, $month, $year) = @_;
-  defined $delta || croak "Delta (in days) required.\n";
-  $day   || croak "Day required.\n";
+  defined $delta || croak "delta (in days) required.\n";
+  $day   || croak "day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
   my($y, $m, $d) = Add_Delta_Days($year, $month, $day, $delta);
@@ -51,7 +51,7 @@ sub add_days {
 
 sub week_of_year {
   my($self, $day, $month, $year) = @_;
-  $day || croak "Day required.\n";
+  $day || croak "day required.\n";
   $month ||= $self->month;
   $year  ||= $self->year;
   my $week;
