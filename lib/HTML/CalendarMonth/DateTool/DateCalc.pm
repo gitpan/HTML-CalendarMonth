@@ -1,19 +1,25 @@
 package HTML::CalendarMonth::DateTool::DateCalc;
+BEGIN {
+  $HTML::CalendarMonth::DateTool::DateCalc::VERSION = '1.24';
+}
 
 # Interface to Date::Calc
 
 use strict;
+use warnings;
 use Carp;
 
-use vars qw(@ISA $VERSION);
+use base qw( HTML::CalendarMonth::DateTool );
 
-@ISA = qw(HTML::CalendarMonth::DateTool);
-
-$VERSION = '0.05';
-
-use Date::Calc qw(Days_in_Month Day_of_Week Add_Delta_Days
-                  Weeks_in_Year Week_of_Year Week_Number Mktime
-                 );
+use Date::Calc qw(
+  Days_in_Month
+  Day_of_Week
+  Add_Delta_Days
+  Weeks_in_Year
+  Week_of_Year
+  Week_Number
+  Mktime
+);
 
 sub dow1st_and_lastday {
   my($self, $month, $year) = @_;

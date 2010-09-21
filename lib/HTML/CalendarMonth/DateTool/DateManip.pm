@@ -1,15 +1,15 @@
 package HTML::CalendarMonth::DateTool::DateManip;
+BEGIN {
+  $HTML::CalendarMonth::DateTool::DateManip::VERSION = '1.24';
+}
 
 # Interface to Date::Manip
 
 use strict;
+use warnings;
 use Carp;
 
-use vars qw(@ISA $VERSION);
-
-@ISA = qw(HTML::CalendarMonth::DateTool);
-
-$VERSION = '0.04';
+use base qw( HTML::CalendarMonth::DateTool );
 
 use Date::Manip qw(
   Date_DaysInMonth

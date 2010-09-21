@@ -1,4 +1,8 @@
-Revision history for Perl extension HTML-CalendarMonth.
+Revision history for HTML-CalendarMonth
+
+1.24  Tue Sep 21 13:09:25 EDT 2010
+        - Switched to File::Which for finding cal/ncal
+        - Added some sanity checks for the cal/ncal output
 
 1.23  Sat Jun 12 21:12:45 EDT 2010
         - Updated interface with DateTime::Locale (will eventually

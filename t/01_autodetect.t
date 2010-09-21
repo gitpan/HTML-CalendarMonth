@@ -10,7 +10,7 @@ use HTML::CalendarMonth::DateTool;
 
 my($test_count, $detected);
 BEGIN {
-  $test_count = bulk_count() + odd_count() + 1;
+  $test_count = bulk_count() + 1;
   eval { $detected = HTML::CalendarMonth::DateTool->new };
 }
 
@@ -21,6 +21,4 @@ ok($detected, 'auto-detected a datetool');
 SKIP: {
   skip("no datetools installed", $test_count) unless $detected;
   check_bulk_with_datetool();
-  check_odd_with_datetool();
 }
-

@@ -1,21 +1,21 @@
 package HTML::CalendarMonth::DateTool::Cal;
+BEGIN {
+  $HTML::CalendarMonth::DateTool::Cal::VERSION = '1.24';
+}
 
 # Interface to unix 'cal' command
 
 use strict;
+use warnings;
 use Carp;
 
-use vars qw(@ISA $VERSION);
-
-@ISA = qw(HTML::CalendarMonth::DateTool);
-
-$VERSION = '0.02';
+use base qw( HTML::CalendarMonth::DateTool );
 
 sub dow1st_and_lastday {
   my($self, $month, $year) = @_;
   $month ||= $self->month;
   $year  ||= $self->year;
-  my $cmd = $self->cal_cmd or croak "cal command not found\n";
+  my $cmd = $self->_cal_cmd or croak "cal command not found\n";
 
   my @cal = grep(!/^\s*$/,`$cmd $month $year`);
   chomp @cal;
@@ -25,11 +25,11 @@ sub dow1st_and_lastday {
   # With dow1st and lastday, one builds a calendar sequentially.
   # Historically, in particular Sep 1752, days have been skipped. Here's
   # the chance to catch that.
-  $self->skips(undef);
+  $self->_skips(undef);
   if ($month == 9 && $year == 1752) {
     my %skips;
     grep(++$skips{$_}, 3 .. 13);
-    $self->skips(\%skips);
+    $self->_skips(\%skips);
   }
   ($dow1st, $lastday);
 }

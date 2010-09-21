@@ -1,15 +1,15 @@
 package HTML::CalendarMonth::DateTool::TimeLocal;
+BEGIN {
+  $HTML::CalendarMonth::DateTool::TimeLocal::VERSION = '1.24';
+}
 
 # Interface to Time::Local
 
 use strict;
+use warnings;
 use Carp;
 
-use vars qw(@ISA $VERSION);
-
-@ISA = qw(HTML::CalendarMonth::DateTool);
-
-$VERSION = '0.01';
+use base qw( HTML::CalendarMonth::DateTool );
 
 use Time::Local;
 

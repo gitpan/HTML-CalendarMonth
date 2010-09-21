@@ -1,14 +1,15 @@
 package HTML::CalendarMonth::DateTool;
+BEGIN {
+  $HTML::CalendarMonth::DateTool::VERSION = '1.24';
+}
 
 # Base class for determining what date calculation package to use.
 
 use strict;
+use warnings;
 use Carp;
 
-use vars qw($VERSION);
-$VERSION = '0.04';
-
-my $DEBUG = 0;
+use File::Which qw( which );
 
 my %Toolmap = (
   'Time::Local' => 'TimeLocal',
@@ -24,7 +25,7 @@ $Classmap{lc $Toolmap{$_}} = $_ foreach keys %Toolmap;
 
 my($Cal_Cmd, $Ncal_Cmd);
 
-sub toolmap {
+sub _toolmap {
   shift;
   my $str = shift;
   my $tool = $Toolmap{$str};
@@ -36,7 +37,7 @@ sub toolmap {
       }
     }
   }
-  return undef unless $tool;
+  return unless $tool;
   join('::', __PACKAGE__, $tool);
 }
 
@@ -50,20 +51,19 @@ sub new {
   $self->{weeknum}  = $parms{weeknum};
   $self->{historic} = $parms{historic};
   if (! $self->{year}) {
-    my @dmy = $self->dmy_now;
+    my @dmy = $self->_dmy_now;
     $self->{year}    = $dmy[2];
     $self->{month} ||= $dmy[1];
   }
   $self->{month} ||= 1;
   if ($parms{datetool}) {
-    $self->{datetool} = $self->toolmap($parms{datetool})
+    $self->{datetool} = $self->_toolmap($parms{datetool})
       or croak "Sorry, didn't find a tool for datetool '$parms{datetool}'\n";
   }
   my $dc = $self->_summon_date_class;
   unless (eval "require $dc") {
     croak "Problem loading $dc ($@)\n";
   }
-  print STDERR "Using date class $dc\n" if $DEBUG;
   # rebless into new class
   bless $self, $dc;
 }
@@ -74,32 +74,82 @@ sub weeknum  { shift->{weeknum}  }
 sub historic { shift->{historic} }
 sub datetool { shift->{datetool} }
 
-sub name {
+sub _name {
   my $class = shift;
   $class = ref $class || $class;
   lc((split(/::/, $class))[-1]);
 }
 
-sub _find_cmd {
-  my($self, $cmd) = @_;
-  my $bin;
-  foreach (qw(/usr/bin /bin /usr/local/bin)) {
-    return "$_/$cmd" if -x "$_/$cmd";
-  }
-}
-
-sub cal_cmd {
+sub _cal_cmd {
   my $self = shift;
   if (! defined $Cal_Cmd) {
-    $Cal_Cmd = $self->_find_cmd('cal');
+    $Cal_Cmd = which('cal') || '';
+    if ($Cal_Cmd) {
+      my @out = grep { ! /^\s*$/ } `$Cal_Cmd 9 1752`;
+      #   September 1752
+      #Su Mo Tu We Th Fr Sa
+      #       1  2 14 15 16
+      #17 18 19 20 21 22 23
+      #24 25 26 27 28 29 30
+      my @pat = (
+        qr/^\s*\S+\s+\d+$/,
+        qr/^\s*\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s*$/,
+        qr/^\s*\d+\s+\d+\s+\d+\s+\d+\s+\d+\s*$/,
+        qr/^\s*\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s*$/,
+        qr/^\s*\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s*$/,
+      );
+      if (@out == @pat) {
+        for my $i (0 .. $#out) {
+          if ($out[$i] !~ $pat[$i]) {
+            $Cal_Cmd = '';
+            last;
+          }
+        }
+      }
+      else {
+        $Cal_Cmd = '';
+      }
+    }
   }
   $Cal_Cmd;
 }
 
-sub ncal_cmd {
+sub _ncal_cmd {
   my $self = shift;
   if (! defined $Ncal_Cmd) {
-    $Ncal_Cmd = $self->_find_cmd('ncal');
+    $Ncal_Cmd = which('ncal') || '';
+    if ($Ncal_Cmd) {
+      my @out = grep { ! /^\s*$/ } map { s/^\s*//; $_ } `$Ncal_Cmd 9 1752`;
+      #    September 1752
+      #Mo    18 25
+      #Tu  1 19 26
+      #We  2 20 27
+      #Th 14 21 28
+      #Fr 15 22 29
+      #Sa 16 23 30
+      #Su 17 24
+      my @pat = (
+        qr/^\s*\S+\s+\d+$/,
+        qr/^\s*\S+\s+\d+\s+\d+\s*$/,
+        qr/^\s*\S+\s+\d+\s+\d+\s+\d+\s*$/,
+        qr/^\s*\S+\s+\d+\s+\d+\s+\d+\s*$/,
+        qr/^\s*\S+\s+\d+\s+\d+\s+\d+\s*$/,
+        qr/^\s*\S+\s+\d+\s+\d+\s+\d+\s*$/,
+        qr/^\s*\S+\s+\d+\s+\d+\s+\d+\s*$/,
+        qr/^\s*\S+\s+\d+\s+\d+\s*$/,
+      );
+      if (@out == @pat) {
+        for my $i (0 .. $#out) {
+          if ($out[$i] !~ $pat[$i]) {
+            $Ncal_Cmd = '';
+            last;
+          }
+        }
+      }
+      else {
+        $Ncal_Cmd = '';
+      }
+    }
   }
   $Ncal_Cmd;
 }
@@ -112,7 +162,7 @@ sub day_epoch {
   Time::Local::timegm(0,0,0,1,$month,$year);
 }
 
-sub skips {
+sub _skips {
   my $self = shift;
   @_ ? $self->{skips} = shift : $self->{skips};
 }
@@ -121,7 +171,7 @@ sub dow1st  { (shift->dow1st_and_lastday)[0] }
 
 sub lastday { (shift->dow1st_and_lastday)[1] }
 
-sub dmy_now {
+sub _dmy_now {
   my $self = shift;
   my $ts = @_ ? shift : time;
   my($d, $m, $y) = (localtime($ts))[3,4,5];
@@ -129,7 +179,7 @@ sub dmy_now {
   ($d, $m, $y);
 }
 
-sub dom_now {
+sub _dom_now {
   my $self = shift;
   my $ts = @_ ? shift : time;
   my($d, $m, $y);
@@ -140,7 +190,7 @@ sub dom_now {
         unless $ts >= 1 && $ts <= $self->lastday;
     }
     else {
-      ($d, $m, $y) = $self->dmy_now($ts);
+      ($d, $m, $y) = $self->_dmy_now($ts);
     }
   }
   else {
@@ -160,7 +210,7 @@ sub _summon_date_class {
   my $self = shift;
   my @tools;
   if (my $c = $self->datetool) {
-    @tools = $c->name;
+    @tools = $c->_name;
   }
   else {
     @tools = qw( timelocal datecalc datetime datemanip ncal cal );
@@ -172,7 +222,7 @@ sub _summon_date_class {
       push(@fails, [$tool, $f]);
     }
     else {
-      $dc = $self->toolmap($tool);
+      $dc = $self->_toolmap($tool);
       last;
     }
   }
@@ -182,7 +232,7 @@ sub _summon_date_class {
   }
   else {
     croak join("\n",
-      "no valid date mechanism found:",
+      "no valid date tool found:",
       map(sprintf("%11s: %s", @$_), @fails),
       "\n"
     );
@@ -258,8 +308,8 @@ sub _timelocal_present { eval "require Time::Local"; return !$@ }
 sub _datecalc_present  { eval "require Date::Calc";  return !$@ }
 sub _datetime_present  { eval "require DateTime";    return !$@ }
 sub _datemanip_present { eval "require Date::Manip"; return !$@ }
-sub _ncal_present      { shift->ncal_cmd }
-sub _cal_present       { shift->cal_cmd  };
+sub _ncal_present      { shift->_ncal_cmd }
+sub _cal_present       { shift->_cal_cmd  };
 
 1;
 

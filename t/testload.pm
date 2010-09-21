@@ -55,7 +55,7 @@ BEGIN {
 $Bulk_File   = File::Spec->catdir($Dat_Dir,   'bulk.dat');
 $Odd_File    = File::Spec->catdir($Dat_Dir,    'odd.dat');
 $Woy_File    = File::Spec->catdir($Dat_Dir,    'woy.dat');
-$I8N_File    = File::Spec->catdir($Dat_Dir, '   i8n.dat');
+$I8N_File    = File::Spec->catdir($Dat_Dir,    'i8n.dat');
 $Narrow_File = File::Spec->catdir($Dat_Dir, 'narrow.dat');
 
 my(@Bulk, @Odd, @Woy, @I8N, @Nar);
@@ -112,7 +112,7 @@ sub clean {
 
 sub check_datetool {
   my $datetool = shift;
-  my $module = HTML::CalendarMonth::DateTool->toolmap($datetool);
+  my $module = HTML::CalendarMonth::DateTool->_toolmap($datetool);
   ok($module, "toolmap($datetool) : $module");
   require_ok($module);
 }
@@ -130,7 +130,7 @@ sub check_bulk_with_datetool {
     );
     @days = $c->dayheaders unless @days;
     my $day1 = $days[$wb - 1];
-    my $method = $c->_caltool->name;
+    my $method = $c->_caltool->_name;
     $method = "auto-select ($method)" unless $datetool;
     my $msg = sprintf(
       "(%d/%02d %s 1st day) using %s",
@@ -155,11 +155,13 @@ sub check_odd_with_datetool {
           datetool   => $datetool,
         );
       };
-      skip("$datetool skip julian $y/$m", 1)
-        if $@ && $@ =~ /invalid date tool/i;
+      if ($@ || !$c) {
+        croak $@ unless $@ =~ /(no|in)\s*valid date tool/i;
+        skip("$datetool skip odd $y/$m", 1);
+      }
       @days = $c->dayheaders unless @days;
       my $day1 = $days[$wb - 1];
-      my $method = $c->_caltool->name;
+      my $method = $c->_caltool->_name;
       $method = "auto-select ($method)" unless $datetool;
       my $msg = sprintf(
         "(%d/%02d %s 1st day) using %s",

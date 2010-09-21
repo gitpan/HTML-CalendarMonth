@@ -1,0 +1,48 @@
+{
+   "abstract" : "Generate and manipulate HTML calendar months",
+   "author" : [
+      "Matthew P. Sisk <msisk@cpan.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Dist::Zilla version 4.101612, CPAN::Meta::Converter version 2.101610",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "HTML-CalendarMonth",
+   "prereqs" : {
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "6.31"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Carp" : 0,
+            "Class::Accessor" : 0,
+            "DateTime::Locale" : "0.45",
+            "File::Which" : 0,
+            "HTML::ElementTable" : "1.18",
+            "Time::Local" : 0,
+            "constant" : 0
+         }
+      },
+      "test" : {
+         "requires" : {
+            "Cwd" : 0,
+            "English" : 0,
+            "Exporter" : 0,
+            "File::Spec" : 0,
+            "FindBin" : 0,
+            "Test::More" : 0,
+            "vars" : 0
+         }
+      }
+   },
+   "release_status" : "stable",
+   "version" : "1.24"
+}
+

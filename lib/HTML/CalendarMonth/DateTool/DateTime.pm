@@ -1,15 +1,15 @@
 package HTML::CalendarMonth::DateTool::DateTime;
+BEGIN {
+  $HTML::CalendarMonth::DateTool::DateTime::VERSION = '1.24';
+}
 
 # Interface to DateTime
 
 use strict;
+use warnings;
 use Carp;
 
-use vars qw(@ISA $VERSION);
-
-@ISA = qw(HTML::CalendarMonth::DateTool);
-
-$VERSION = '0.04';
+use base qw( HTML::CalendarMonth::DateTool );
 
 use DateTime;
 

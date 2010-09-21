@@ -1,4 +1,7 @@
 package HTML::CalendarMonth::Locale;
+BEGIN {
+  $HTML::CalendarMonth::Locale::VERSION = '1.24';
+}
 
 # Front end class around DateTime::Locale. In addition to providing
 # access to the DT::Locale class and locale-specific instance, this
@@ -6,12 +9,10 @@ package HTML::CalendarMonth::Locale;
 # HTML::CalendarMonth.
 
 use strict;
+use warnings;
 use Carp;
 
-use DateTime::Locale;
-
-use vars qw($VERSION);
-$VERSION = '0.02';
+use DateTime::Locale 0.45;
 
 my %Register;
 
@@ -31,7 +32,6 @@ sub new {
   $self;
 }
 
-
 sub locale { 'DateTime::Locale' }
 
 sub loc { $Register{shift->id} }
@@ -42,11 +42,7 @@ sub id          { shift->{id}          }
 sub full_days   { shift->{full_days}   }
 sub full_months { shift->{full_months} }
 
-sub first_day_of_week {
-  # for backwards compat, H::CM has always used 1..7 = (Sun .. Sat)
-  my $d = shift->loc->first_day_of_week;
-  ($d % 7) + 1;
-}
+sub first_day_of_week { shift->loc->first_day_of_week % 7 }
 
 sub days {
   my $self = shift;
@@ -95,14 +91,29 @@ sub narrow_months {
   wantarray ? @{$Register{$id}{narrow_months}} : $Register{$id}{narrow_months};
 }
 
-sub minmatch {
+sub days_minmatch {
   my $self = shift;
-  my $id = $self->id;
-  unless ($Register{$id}{minmatch}) {
-    $Register{$id}{days_minmatch} = 
-      $self->minmatch_hash(@{$self->days});
-  }
-  $Register{$id}{days_minmatch};
+  $Register{$self->id}{days_mm}
+    ||= $self->lc_minmatch_hash($self->days);
+}
+*minmatch = \&days_minmatch;
+
+sub _days_minmatch_pattern {
+  my $dmm = shift->days_minmatch;
+  join('|', sort keys %$dmm);
+}
+*minmatch_pattern = \&_days_minmatch_pattern;
+
+
+sub months_minmatch {
+  my $self = shift;
+  $Register{$self->id}{months_mm}
+    ||= $self->lc_minmatch_hash($self->months);
+}
+
+sub _months_minmatch_pattern {
+  my $mmm = shift->months_minmatch;
+  join('|', sort keys %$mmm);
 }
 
 sub daynums {
@@ -117,12 +128,23 @@ sub daynums {
   $Register{$id}{daynum};
 }
 
-sub daynum {
+sub _daymatch {
   my($self, $day) = @_;
-  defined $day or croak "day of week label required\n";
-  my $days = $self->days;
-  $days->{$day} or croak "Failed daynum lookup for '$day'\n";
+  return unless defined $day;
+  if ($day =~ /^\d+$/) {
+    $day %= 7;
+    return($day, $self->days->[$day]);
+  }
+  my $p = $self->_days_minmatch_pattern;
+  if ($day =~ /^($p)/i) {
+    $day = $self->days_minmatch->{lc $1};
+    return($self->daynums->{$day}, $day);
+  }
+  return ();
 }
+
+sub daynum  { (shift->_daymatch(@_))[0] }
+sub dayname { (shift->_daymatch(@_))[1] }
 
 sub monthnums {
   my $self = shift;
@@ -136,12 +158,23 @@ sub monthnums {
   $Register{$id}{monthnum};
 }
 
-sub monthnum {
-  my($self, $month) = @_;
-  defined $month or croak "month label required\n";
-  my $monthnums = $self->monthnums;
-  $monthnums->{$month} or croak "Failed monthnum lookup for '$month'\n";
+sub _monthmatch {
+  my($self, $mon) = @_;
+  return unless defined $mon;
+  if ($mon =~ /^\d+$/) {
+    $mon %= 12;
+    return($mon, $self->months->[$mon]);
+  }
+  my $p = $self->_months_minmatch_pattern;
+  if ($mon =~ /^($p)/i) {
+    $mon = $self->months_minmatch->{lc $1};
+    return($self->monthnums->{$mon}, $mon);
+  }
+  return ();
 }
+
+sub monthnum  { (shift->_monthmatch(@_))[0] }
+sub monthname { (shift->_monthmatch(@_))[1] }
 
 ###
 
@@ -155,6 +188,38 @@ sub locale_map {
 }
 
 ###
+
+sub lc_minmatch_hash {
+  # given a list, provide a reverse lookup of case-insensitive minimal
+  # values for each label in the list
+  my $whatever = shift;
+  my @orig_labels = @_;
+  my @labels = map { lc $_ } @orig_labels;
+  my $cc = 1;
+  my %minmatch;
+  while (@labels) {
+    my %scratch;
+    foreach my $i (0 .. $#labels) {
+      my $str = $labels[$i];
+      my $chrs = substr($str, 0, $cc);
+      $scratch{$chrs} ||= [];
+      push(@{$scratch{$chrs}}, $i);
+    }
+    my @keep_i;
+    foreach (keys %scratch) {
+      if (@{$scratch{$_}} == 1) {
+        $minmatch{$_} = $orig_labels[$scratch{$_}[0]];
+      }
+      else {
+        push(@keep_i, @{$scratch{$_}});
+      }
+    }
+    @labels      = @labels[@keep_i];
+    @orig_labels = @orig_labels[@keep_i];
+    ++$cc;
+  }
+  \%minmatch;
+}
 
 sub minmatch_hash {
   # given a list, provide a reverse lookup of minimal values for each
@@ -185,8 +250,6 @@ sub minmatch_hash {
   }
   \%minmatch;
 }
-
-sub minmatch_pattern { join('|',keys %{shift->minmatch}) }
 
 1;
 
@@ -231,6 +294,8 @@ developers:
 
 =head1 METHODS
 
+=over
+
 =item new()
 
 Constructor. Takes the following parameters:
@@ -262,6 +327,11 @@ Returns the locale id used during object construction.
 Accessor method for the DateTime::Locale class, which in turn offers
 several class methods of specific interest. See L<DateTime::Locale>.
 
+=item locale_map()
+
+Returns a hash of all available locales, mapping their id to their
+full name.
+
 =item loc()
 
 Accessor method for the DateTime::Locale instance as specified by C<id>.
@@ -275,16 +345,22 @@ DateTime::Locale->ids().
 =item days()
 
 Returns a list of days of the week, Sunday first. These are the actual
-days used for rendering the calendars, so depending on which attributes
-were provided to C<new()>, this list will either be abbreviations or
-full names. The default uses abbreviated day names. Returns a list in
-list context or an array ref in scalar context.
+unique day strings used for rendering calendars, so depending on which
+attributes were provided to C<new()>, this list will either be
+abbreviations or full names. The default uses abbreviated day names.
+Returns a list in list context or an array ref in scalar context.
 
 =item narrow_days()
 
 Returns a list of short day abbreviations, beginning with Sunday. The
 narrow abbreviations are not guaranteed to be unique (i.e. 'S' for both
 Sat and Sun).
+
+=item days_minmatch()
+
+Provides a hash reference containing minimal case-insensitive match
+strings for each day of the week, e.g., 'sa' for Saturday, 'm' for
+Monday, etc.
 
 =item months()
 
@@ -298,40 +374,55 @@ in list context or an array ref in scalar context.
 Returns a list of short month abbreviations, beginning with January. The
 narrow abbreviations are not guaranteed to be unique.
 
-=item minmatch()
+=item months_minmatch()
 
-Provides a hash reference containing minimal match strings for each
-month of the year, e.g., 'N' for November, 'Ja' for January, 'Jul' for
-July, 'Jun' for June, etc.
+Provides a hash reference containing minimal case-insensitive match
+strings for each month of the year, e.g., 'n' for November, 'ja' for
+January, 'jul' for July, 'jun' for June, etc.
 
 =item daynums()
 
-Provides a hash reference containing day of week numbers for each day
-name.
+Provides a hash reference containing day of week indices for each fully
+qualified day name as returned by days().
 
 =item daynum($day)
 
-Provides the day of week number for a particular day name.
+Provides the day of week index for a particular day name.
+
+=item dayname($day)
+
+Provides the fully qualified day name for a given string or day index.
 
 =item monthnums()
 
-Provides a hash reference containing month of year numbers for each
-month name.
+Provides a hash reference containing month of year indices for each
+fully qualified month name as returned by months().
 
 =item monthnum($month)
 
-Provides the month of year number for a particular month name.
+Provides the month of year index for a particular month name.
+
+=item monthname($month)
+
+Provides the month name for a given string or month index.
 
 =item minmatch_hash(@list)
 
-This is the method used to generate the minimal match hash referenced
-above. Given an arbitrary list, a hash reference will be returned with
-minimal match strings as keys and full names as values.
+This is the method used to generate the case-insensitive minimal match
+hash referenced above. Given an arbitrary list, a hash reference will
+be returned with minimal match strings as keys and the original strings
+as values.
+
+=item lc_minmatch_hash(@list)
+
+Same as minmatch_hash, except keys are forced to lower case.
 
 =item first_day_of_week()
 
-Returns a number from 1 to 7 representing the first day of the week for
-this locale, where 1 represents Sunday.
+Returns a number from 0 to 6 representing the first day of the week for
+this locale, where 0 represents Sunday.
+
+=back
 
 =head1 AUTHOR
 
@@ -346,3 +437,5 @@ modify it under the same terms as Perl itself.
 =head1 SEE ALSO
 
 HTML::CalendarMonth(3), DateTime::Locale(3)
+
+=for Pod::Coverage minmatch minmatch_pattern

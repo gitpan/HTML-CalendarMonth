@@ -1,15 +1,15 @@
 package HTML::CalendarMonth::DateTool::Ncal;
+BEGIN {
+  $HTML::CalendarMonth::DateTool::Ncal::VERSION = '1.24';
+}
 
 # Interface to linux 'ncal' command
 
 use strict;
+use warnings;
 use Carp;
 
-use vars qw(@ISA $VERSION);
-
-@ISA = qw(HTML::CalendarMonth::DateTool);
-
-$VERSION = '0.01';
+use base qw( HTML::CalendarMonth::DateTool );
 
 sub dow1st_and_lastday {
   my($self, $month, $year) = @_;
@@ -18,7 +18,7 @@ sub dow1st_and_lastday {
   if (my $r = $self->{_res}{$year}{$month}) {
     return(@$r);
   }
-  my $cmd = $self->ncal_cmd or croak "ncal command not found\n";
+  my $cmd = $self->_ncal_cmd or croak "ncal command not found\n";
   my @cal = grep(!/^\s*$/,`$cmd -w $month $year`);
   shift @cal if $cal[0] =~ /\D+/;
   my @woy;
@@ -44,11 +44,11 @@ sub dow1st_and_lastday {
     }
   }
   # catch switchover from Julian to Gregorian
-  $self->skips(undef);
+  $self->_skips(undef);
   if ($month == 9 && $year == 1752) {
     my %skips;
     grep(++$skips{$_}, 3 .. 13);
-    $self->skips(\%skips);
+    $self->_skips(\%skips);
   }
   delete $self->{_woy};
   delete $self->{_dow};
