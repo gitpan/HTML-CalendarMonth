@@ -1,6 +1,6 @@
 package HTML::CalendarMonth::DateTool::TimeLocal;
 BEGIN {
-  $HTML::CalendarMonth::DateTool::TimeLocal::VERSION = '1.24';
+  $HTML::CalendarMonth::DateTool::TimeLocal::VERSION = '1.25';
 }
 
 # Interface to Time::Local

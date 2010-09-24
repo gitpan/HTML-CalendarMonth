@@ -19,7 +19,7 @@ use constant DTC => 'HTML::CalendarMonth::DateTool';
 use_ok(DTC);
 
 SKIP: {
-  skip("$method not installed", $test_count) unless DTC->_cal_cmd;
+  skip("$method not installed", $test_count - 1) unless DTC->_cal_cmd;
   check_datetool($method);
   check_bulk_with_datetool($method);
   check_odd_with_datetool($method);

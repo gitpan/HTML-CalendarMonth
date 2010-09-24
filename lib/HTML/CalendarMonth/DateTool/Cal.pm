@@ -1,6 +1,6 @@
 package HTML::CalendarMonth::DateTool::Cal;
 BEGIN {
-  $HTML::CalendarMonth::DateTool::Cal::VERSION = '1.24';
+  $HTML::CalendarMonth::DateTool::Cal::VERSION = '1.25';
 }
 
 # Interface to unix 'cal' command

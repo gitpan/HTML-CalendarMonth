@@ -1,6 +1,6 @@
 package HTML::CalendarMonth::DateTool;
 BEGIN {
-  $HTML::CalendarMonth::DateTool::VERSION = '1.24';
+  $HTML::CalendarMonth::DateTool::VERSION = '1.25';
 }
 
 # Base class for determining what date calculation package to use.

@@ -1,6 +1,6 @@
 package HTML::CalendarMonth::Locale;
 BEGIN {
-  $HTML::CalendarMonth::Locale::VERSION = '1.24';
+  $HTML::CalendarMonth::Locale::VERSION = '1.25';
 }
 
 # Front end class around DateTime::Locale. In addition to providing

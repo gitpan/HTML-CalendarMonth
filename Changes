@@ -1,6 +1,6 @@
 Revision history for HTML-CalendarMonth
 
-1.24  Tue Sep 21 13:09:25 EDT 2010
+1.25  Fri Sep 24 03:09:38 EDT 2010
         - Switched to File::Which for finding cal/ncal
         - Added some sanity checks for the cal/ncal output
 

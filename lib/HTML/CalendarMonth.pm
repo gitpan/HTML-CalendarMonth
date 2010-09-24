@@ -1,13 +1,13 @@
 package HTML::CalendarMonth;
 BEGIN {
-  $HTML::CalendarMonth::VERSION = '1.24';
+  $HTML::CalendarMonth::VERSION = '1.25';
 }
 
 use strict;
 use warnings;
 use Carp;
 
-BEGIN { $HTML::CalendarMonth::VERSION = 1.24 }
+BEGIN { $HTML::CalendarMonth::VERSION = 1.25 }
 
 use HTML::ElementTable 1.18;
 use HTML::CalendarMonth::Locale;

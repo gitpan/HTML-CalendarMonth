@@ -1,6 +1,6 @@
 package HTML::CalendarMonth::DateTool::DateManip;
 BEGIN {
-  $HTML::CalendarMonth::DateTool::DateManip::VERSION = '1.24';
+  $HTML::CalendarMonth::DateTool::DateManip::VERSION = '1.25';
 }
 
 # Interface to Date::Manip

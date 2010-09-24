@@ -19,6 +19,6 @@ use Test::More tests => $test_count;
 ok($detected, 'auto-detected a datetool');
 
 SKIP: {
-  skip("no datetools installed", $test_count) unless $detected;
+  skip("no datetools installed", $test_count - 1) unless $detected;
   check_bulk_with_datetool();
 }
