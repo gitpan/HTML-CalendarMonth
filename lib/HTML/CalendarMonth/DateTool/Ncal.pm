@@ -1,6 +1,6 @@
 package HTML::CalendarMonth::DateTool::Ncal;
-BEGIN {
-  $HTML::CalendarMonth::DateTool::Ncal::VERSION = '1.25';
+{
+  $HTML::CalendarMonth::DateTool::Ncal::VERSION = '1.26';
 }
 
 # Interface to linux 'ncal' command

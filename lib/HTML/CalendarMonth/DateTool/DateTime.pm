@@ -1,6 +1,6 @@
 package HTML::CalendarMonth::DateTool::DateTime;
-BEGIN {
-  $HTML::CalendarMonth::DateTool::DateTime::VERSION = '1.25';
+{
+  $HTML::CalendarMonth::DateTool::DateTime::VERSION = '1.26';
 }
 
 # Interface to DateTime

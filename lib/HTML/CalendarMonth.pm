@@ -1,13 +1,11 @@
 package HTML::CalendarMonth;
-BEGIN {
-  $HTML::CalendarMonth::VERSION = '1.25';
+{
+  $HTML::CalendarMonth::VERSION = '1.26';
 }
 
 use strict;
 use warnings;
 use Carp;
-
-BEGIN { $HTML::CalendarMonth::VERSION = 1.25 }
 
 use HTML::ElementTable 1.18;
 use HTML::CalendarMonth::Locale;
@@ -241,17 +239,15 @@ sub _gencal {
   $self->item($self->year)->replace_content($self->item_alias($self->year));
 
   if ($self->_head_my) {
-    if ($self->head_m) {
-      $self->item($self->month)->attr('colspan',$width - $self->year_span);
+    if ($self->head_m && $self->head_y) {
+      $self->item($self->year) ->attr('colspan', $self->year_span);
+      $self->item($self->month)->attr('colspan', $width - $self->year_span);
     }
-    else {
+    elsif ($self->head_y) {
       $self->item($self->month)->mask(1);
       $self->item($self->year)->attr('colspan', $width);
     }
-    if ($self->head_y) {
-      $self->item($self->year)->attr('colspan',$self->year_span);
-    }
-    else {
+    elsif ($self->head_m) {
       $self->item($self->year)->mask(1);
       $self->item($self->month)->attr('colspan', $width);
     }
@@ -307,11 +303,14 @@ sub _gencal {
 
   # css classes
   if ($self->enable_css) {
-    $self                             ->push_attr(class => 'hcm-table'     );
-    $self->item_row($self->dayheaders)->push_attr(class => 'hcm-day-head'  );
-    $self->item    ($self->year)      ->push_attr(class => 'hcm-year-head' );
-    $self->item    ($self->month)     ->push_attr(class => 'hcm-month-head');
-    $self->item    ($self->week_nums) ->push_attr(class => 'hcm-week-head' )
+    $self->push_attr(class => 'hcm-table');
+    $self->item_row($self->dayheaders)->push_attr(class => 'hcm-day-head')
+      if $self->head_dow;
+    $self->item($self->year)->push_attr(class => 'hcm-year-head')
+      if $self->head_y;
+    $self->item($self->month)->push_attr(class => 'hcm-month-head')
+      if $self->head_m;
+    $self->item($self->week_nums) ->push_attr(class => 'hcm-week-head')
       if $self->head_week;
   }
 
@@ -1076,6 +1075,10 @@ Specifies whether to display the year header. Default 1.
 
 Specifies whether to display days of the week header. Default 1.
 
+=item head_week
+
+Specifies whether to display the week-of-year numbering. Default 0.
+
 =item locale
 
 Specifies the id of the locale in which to render the calendar. Default
@@ -1103,10 +1106,6 @@ Takes a hash reference mapping labels provided by C<locale> to any
 custom label you prefer. Lookups, such as C<day('Sun')>, will still use
 the locale string, but when the calendar is rendered the aliased value
 will appear.
-
-=item head_week
-
-Specifies whether to display the week-of-year numbering. Default 0.
 
 =item week_begin
 

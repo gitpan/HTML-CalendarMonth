@@ -16,6 +16,7 @@ require Exporter;
 use vars qw(
   $Dat_Dir
   $Bulk_File
+  $Head_File
   $Odd_File
   $Woy_File
   $I8N_File
@@ -24,7 +25,7 @@ use vars qw(
 
 @EXPORT = qw(
   $Dat_Dir
-  $Bulk_File $Odd_File $Woy_File $I8N_File $Narrow_File
+  $Bulk_File $Head_File $Odd_File $Woy_File $I8N_File $Narrow_File
   check_datetool
   check_bulk_with_datetool
   check_odd_with_datetool
@@ -53,12 +54,13 @@ BEGIN {
 }
 
 $Bulk_File   = File::Spec->catdir($Dat_Dir,   'bulk.dat');
+$Head_File   = File::Spec->catdir($Dat_Dir,   'head.dat');
 $Odd_File    = File::Spec->catdir($Dat_Dir,    'odd.dat');
 $Woy_File    = File::Spec->catdir($Dat_Dir,    'woy.dat');
 $I8N_File    = File::Spec->catdir($Dat_Dir,    'i8n.dat');
 $Narrow_File = File::Spec->catdir($Dat_Dir, 'narrow.dat');
 
-my(@Bulk, @Odd, @Woy, @I8N, @Nar);
+my(@Bulk, @Head, @Odd, @Woy, @I8N, @Nar);
 
 sub _load_file {
   my $f   = shift;
@@ -67,22 +69,24 @@ sub _load_file {
   return unless open(F, '<', $f);
   while (my $h = <F>) {
     chomp $h;
-    my($d, $wb) = split(/\s+/, $h);
+    my($d, $wb, @other) = split(/\s+/, $h);
     my($y, $m) = split(/\//, $d);
     my $c = <F>;
     chomp $c;
-    push(@$cal, [$d, $y, $m, $wb, clean($c)]);
+    push(@$cal, [$d, $y, $m, $wb, \@other, clean($c)]);
   }
   $cal;
 }
 
-_load_file($Bulk_File, \@Bulk   );
-_load_file($Odd_File,   \@Odd   );
-_load_file($Woy_File,    \@Woy  );
-_load_file($I8N_File,     \@I8N );
-_load_file($Narrow_File,   \@Nar);
+_load_file($Bulk_File, \@Bulk    );
+_load_file($Head_File,  \@Head   );
+_load_file($Odd_File,    \@Odd   );
+_load_file($Woy_File,     \@Woy  );
+_load_file($I8N_File,      \@I8N );
+_load_file($Narrow_File,    \@Nar);
 
 sub bulk_count   { scalar @Bulk }
+sub head_count   { scalar @Head }
 sub odd_count    { scalar @Odd  }
 sub woy_count    { scalar @Woy  }
 sub i8n_count    { scalar @I8N  }
@@ -121,7 +125,7 @@ sub check_bulk_with_datetool {
   my $datetool = shift;
   my @days;
   foreach (@Bulk) {
-    my($d, $y, $m, $wb, $tc) = @$_;
+    my($d, $y, $m, $wb, $other, $tc) = @$_;
     my $c = HTML::CalendarMonth->new(
       year       => $y,
       month      => $m,
@@ -140,11 +144,37 @@ sub check_bulk_with_datetool {
   }
 }
 
+sub check_head_with_datetool {
+  my $datetool = shift;
+  my @days;
+  foreach (@Head) {
+    my($d, $y, $m, $wb, $other, $tc) = @$_;
+    my($hm, $hy, $hd, $hw) = @$other;
+    my $c = HTML::CalendarMonth->new(
+      year       => $y,
+      month      => $m,
+      week_begin => $wb,
+      head_m     => $hm,
+      head_y     => $hy,
+      head_dow   => $hd,
+      head_week  => $hw,
+      datetool   => $datetool,
+    );
+    my $method = $c->_caltool->_name;
+    $method = "auto-select ($method)" unless $datetool;
+    my $msg = sprintf(
+      "(%d/%02d hm:%d hy:%d hd:%d hw:%d) using %s",
+      $y, $m, $hm, $hy, $hd, $hw, $method
+    );
+    cmp_ok(clean($c->as_HTML), 'eq', $tc, $msg);
+  }
+}
+
 sub check_odd_with_datetool {
   my $datetool = shift;
   my @days;
   foreach (@Odd) {
-    my($d, $y, $m, $wb, $tc) = @$_;
+    my($d, $y, $m, $wb, $other, $tc) = @$_;
     SKIP: {
       my $c;
       eval {
@@ -157,7 +187,7 @@ sub check_odd_with_datetool {
       };
       if ($@ || !$c) {
         croak $@ unless $@ =~ /(no|in)\s*valid date tool/i;
-        skip("$datetool skip odd $y/$m", 1);
+        skip("$datetool odd $y/$m", 1);
       }
       @days = $c->dayheaders unless @days;
       my $day1 = $days[$wb - 1];
@@ -175,7 +205,7 @@ sub check_odd_with_datetool {
 sub check_woy_with_datetool {
   my $datetool = shift;
   foreach (@Woy) {
-    my($d, $y, $m, $wb, $tc) = @$_;
+    my($d, $y, $m, $wb, $other, $tc) = @$_;
     my $c = HTML::CalendarMonth->new(
       year       => $y,
       month      => $m,
@@ -189,7 +219,7 @@ sub check_woy_with_datetool {
 
 sub check_i8n {
   foreach (@I8N) {
-    my($d, $y, $m, $id, $tc) = @$_;
+    my($d, $y, $m, $id, $other, $tc) = @$_;
     my $c = HTML::CalendarMonth->new(
       year   => $y,
       month  => $m,
@@ -207,7 +237,7 @@ sub check_i8n {
 sub check_narrow {
   my @days;
   foreach (@Nar) {
-    my($d, $y, $m, $wb, $tc) = @$_;
+    my($d, $y, $m, $wb, $other, $tc) = @$_;
     my $c = HTML::CalendarMonth->new(
       year       => $y,
       month      => $m,

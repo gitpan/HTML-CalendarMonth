@@ -5,6 +5,7 @@ MANIFEST.SKIP
 META.json
 Makefile.PL
 README
+bs.pm
 dist.ini
 lib/HTML/CalendarMonth.pm
 lib/HTML/CalendarMonth/DateTool.pm
@@ -27,6 +28,7 @@ t/20_i8n.t
 t/21_narrow.t
 t/author-critic.t
 t/dat/bulk.dat
+t/dat/head.dat
 t/dat/i8n.dat
 t/dat/narrow.dat
 t/dat/odd.dat

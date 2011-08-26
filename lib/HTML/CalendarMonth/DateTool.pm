@@ -1,6 +1,6 @@
 package HTML::CalendarMonth::DateTool;
-BEGIN {
-  $HTML::CalendarMonth::DateTool::VERSION = '1.25';
+{
+  $HTML::CalendarMonth::DateTool::VERSION = '1.26';
 }
 
 # Base class for determining what date calculation package to use.
@@ -210,6 +210,8 @@ sub _summon_date_class {
   my $self = shift;
   my @tools;
   if (my $c = $self->datetool) {
+    eval "use $c";
+    die "invalid date tool $c : $@" if $@;
     @tools = $c->_name;
   }
   else {
@@ -228,7 +230,7 @@ sub _summon_date_class {
   }
   return $dc if $dc;
   if (@tools == 1) {
-    croak "invalid date tool " . join(': ', @{$fails[0]}) if @tools == 1;
+    croak "invalid date tool " . join(': ', @{$fails[0]});
   }
   else {
     croak join("\n",
@@ -301,6 +303,8 @@ sub _datemanip_fails {
   return "not installed" unless $self->_datemanip_present;
   return "historic mode prior to 1752/09 not supported"
     if $self->historic && $self->_is_julian;
+  eval { require Date::Manip && Date::Manip::Date_Init() };
+  return "init failure: $@" if $@;
   return;
 }
 
@@ -310,6 +314,7 @@ sub _datetime_present  { eval "require DateTime";    return !$@ }
 sub _datemanip_present { eval "require Date::Manip"; return !$@ }
 sub _ncal_present      { shift->_ncal_cmd }
 sub _cal_present       { shift->_cal_cmd  };
+
 
 1;
 

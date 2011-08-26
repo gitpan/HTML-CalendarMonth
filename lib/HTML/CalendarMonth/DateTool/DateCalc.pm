@@ -1,6 +1,6 @@
 package HTML::CalendarMonth::DateTool::DateCalc;
-BEGIN {
-  $HTML::CalendarMonth::DateTool::DateCalc::VERSION = '1.25';
+{
+  $HTML::CalendarMonth::DateTool::DateCalc::VERSION = '1.26';
 }
 
 # Interface to Date::Calc
